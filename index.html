@@ -149,8 +149,38 @@ input[type=date]:focus{border-color:#1c1917}
 .dash-bar-wrap{height:8px;background:#f5f5f4;border-radius:4px;overflow:hidden;flex:1}
 .dash-bar-fill{height:100%;border-radius:4px;transition:width .6s ease}
 .dash-pct{font-size:11px;font-weight:600;color:#78716c;min-width:36px;text-align:right}
+
+/* LOGIN */
+.login-bg{position:fixed;inset:0;background:#f5f5f4;display:flex;align-items:center;justify-content:center;z-index:9999}
+.login-box{background:#fff;border:1px solid #e7e5e4;border-radius:16px;padding:40px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.08)}
+.login-logo{width:48px;height:48px;background:#1c1917;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+.login-logo svg{width:26px;height:26px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.login-title{font-size:20px;font-weight:700;color:#1c1917;text-align:center;margin-bottom:4px}
+.login-sub{font-size:13px;color:#78716c;text-align:center;margin-bottom:28px}
+.login-label{font-size:12px;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:block}
+.login-input{width:100%;height:42px;padding:0 14px;border:1px solid #d6d3d1;border-radius:10px;font-size:14px;color:#1c1917;outline:none;transition:border-color .15s;background:#fff}
+.login-input:focus{border-color:#1c1917;box-shadow:0 0 0 3px rgba(28,25,23,.08)}
+.login-btn{width:100%;height:42px;background:#1c1917;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-top:16px;transition:background .15s}
+.login-btn:hover{background:#292524}
+.login-err{background:#fee2e2;color:#991b1b;border-radius:8px;padding:10px 14px;font-size:13px;margin-top:12px;display:none;text-align:center}
 </style>
 <body>
+
+<div class="login-bg" id="login-bg">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    </div>
+    <div class="login-title">Pagamentos NFS-e & CTe</div>
+    <div class="login-sub">Novatrans Log&#xED;stica &mdash; Acesso restrito</div>
+    <label class="login-label">Senha de acesso</label>
+    <input class="login-input" type="password" id="login-input" placeholder="Digite a senha..."
+      onkeydown="if(event.key==='Enter')fazerLogin()">
+    <button class="login-btn" onclick="fazerLogin()">Entrar</button>
+    <div class="login-err" id="login-err">Senha incorreta. Tente novamente.</div>
+  </div>
+</div>
+
 
 <div class="topbar">
   <div class="logo">
@@ -2135,6 +2165,50 @@ document.addEventListener('keydown', function(e){
   if((e.ctrlKey||e.metaKey) && e.key==='s'){ e.preventDefault(); fazerBackup(); }
 });
 
+
+// ── LOGIN ──────────────────────────────────────────────────
+var SENHA_HASH = 'af690ee094002a0381f590a8bb47cd124f49f33c94f788c318dfe0b5de8e3a22';
+
+function hashStr(str){
+  // SHA-256 via SubtleCrypto (async)
+  var buf = new TextEncoder().encode(str);
+  return crypto.subtle.digest('SHA-256', buf).then(function(hash){
+    return Array.from(new Uint8Array(hash)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+  });
+}
+
+function fazerLogin(){
+  var inp = document.getElementById('login-input');
+  var senha = inp.value;
+  if(!senha){ inp.focus(); return; }
+  hashStr(senha).then(function(hash){
+    if(hash === SENHA_HASH){
+      // Salvar sessão por 8 horas
+      sessionStorage.setItem('auth', hash);
+      document.getElementById('login-bg').style.display = 'none';
+      inp.value = '';
+    } else {
+      var err = document.getElementById('login-err');
+      err.style.display = 'block';
+      inp.value = '';
+      inp.focus();
+      setTimeout(function(){ err.style.display='none'; }, 3000);
+    }
+  });
+}
+
+function verificarLogin(){
+  var auth = sessionStorage.getItem('auth');
+  if(auth === SENHA_HASH){
+    document.getElementById('login-bg').style.display = 'none';
+    return true;
+  }
+  // Mostrar tela de login e focar no campo
+  document.getElementById('login-bg').style.display = 'flex';
+  setTimeout(function(){ document.getElementById('login-input').focus(); }, 100);
+  return false;
+}
+
 // ── INIT ──
 // Interceptar push/splice em CONS e PAG_OJI para autosave automático
 (function(){
@@ -2147,11 +2221,26 @@ document.addEventListener('keydown', function(e){
   interceptArray(PAG_OJI);
 })();
 // Carregar dados do Supabase (nuvem) ou localStorage (cache)
-carregarDados().then(function(){
-  af();
-  if(typeof rebuildVeicFilter==='function') rebuildVeicFilter();
-  renderDashboard();
-});
+verificarLogin();
+if(document.getElementById('login-bg').style.display === 'none'){
+  carregarDados().then(function(){
+    af();
+    if(typeof rebuildVeicFilter==='function') rebuildVeicFilter();
+    renderDashboard();
+  });
+} else {
+  // Aguardar login para carregar dados
+  var _loginCheck = setInterval(function(){
+    if(document.getElementById('login-bg').style.display === 'none'){
+      clearInterval(_loginCheck);
+      carregarDados().then(function(){
+        af();
+        if(typeof rebuildVeicFilter==='function') rebuildVeicFilter();
+        renderDashboard();
+      });
+    }
+  }, 300);
+}
 </script>
 </body>
 </html>
