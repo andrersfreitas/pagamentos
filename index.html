@@ -151,18 +151,101 @@ input[type=date]:focus{border-color:#1c1917}
 .dash-pct{font-size:11px;font-weight:600;color:#78716c;min-width:36px;text-align:right}
 
 /* LOGIN */
-.login-bg{position:fixed;inset:0;background:#f5f5f4;display:flex;align-items:center;justify-content:center;z-index:9999}
-.login-box{background:#fff;border:1px solid #e7e5e4;border-radius:16px;padding:40px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.08)}
-.login-logo{width:48px;height:48px;background:#1c1917;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+.login-bg{position:fixed;inset:0;background:#f5f5f4;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px}
+.login-box{background:#fff;border:1px solid #e7e5e4;border-radius:16px;padding:32px 28px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.08)}
+.login-logo{width:48px;height:48px;background:#1c1917;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
 .login-logo svg{width:26px;height:26px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .login-title{font-size:20px;font-weight:700;color:#1c1917;text-align:center;margin-bottom:4px}
-.login-sub{font-size:13px;color:#78716c;text-align:center;margin-bottom:28px}
+.login-sub{font-size:13px;color:#78716c;text-align:center;margin-bottom:24px}
 .login-label{font-size:12px;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:block}
-.login-input{width:100%;height:42px;padding:0 14px;border:1px solid #d6d3d1;border-radius:10px;font-size:14px;color:#1c1917;outline:none;transition:border-color .15s;background:#fff}
+.login-input{width:100%;height:44px;padding:0 14px;border:1px solid #d6d3d1;border-radius:10px;font-size:15px;color:#1c1917;outline:none;transition:border-color .15s;background:#fff}
 .login-input:focus{border-color:#1c1917;box-shadow:0 0 0 3px rgba(28,25,23,.08)}
-.login-btn{width:100%;height:42px;background:#1c1917;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-top:16px;transition:background .15s}
+.login-btn{width:100%;height:44px;background:#1c1917;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px;transition:background .15s}
 .login-btn:hover{background:#292524}
 .login-err{background:#fee2e2;color:#991b1b;border-radius:8px;padding:10px 14px;font-size:13px;margin-top:12px;display:none;text-align:center}
+.perfil-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-left:8px}
+.perfil-adm{background:#fef3c7;color:#92400e}
+.perfil-cons{background:#dbeafe;color:#1d4ed8}
+/* MODO CONSULTA - ocultar controles de edição */
+body.modo-consulta .btn-del{display:none!important}
+body.modo-consulta .vei-ok{display:none!important}
+body.modo-consulta .vei-inp{pointer-events:none;background:#fafaf9;border-color:transparent}
+body.modo-consulta #btn-backup{display:none!important}
+body.modo-consulta #btn-restaurar{display:none!important}
+body.modo-consulta [onclick*="showTab('upload')"]{display:none!important}
+body.modo-consulta #page-upload{display:none!important}
+body.modo-consulta .mtab{pointer-events:none}
+
+/* ── MOBILE RESPONSIVO ─────────────────────────────────── */
+@media (max-width: 768px){
+  .topbar{padding:0 12px;gap:8px;height:52px}
+  .topbar-title{font-size:13px}
+  .topbar-sub{display:none}
+  #perfil-badge{font-size:10px;padding:2px 7px}
+  .btn-backup{height:30px;padding:0 10px;font-size:12px}
+  #btn-restaurar{height:30px;padding:0 10px;font-size:12px}
+
+  .tabs{padding:0 8px;gap:0}
+  .tab{padding:10px 10px;font-size:12px}
+
+  .main{padding:12px}
+
+  .cards{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+  .card{padding:12px 12px}
+  .card-val{font-size:20px}
+  .card-lbl{font-size:10px}
+  .card-sub{font-size:10px}
+
+  .filters{padding:10px 12px;gap:6px}
+  .msb{min-width:100px;font-size:12px;height:32px}
+  .msdd{min-width:160px}
+  input[type=text]{width:140px;font-size:12px;height:32px}
+
+  /* Tabela mobile: scroll horizontal com colunas essenciais */
+  .tw{-webkit-overflow-scrolling:touch}
+  table{font-size:12px}
+  thead th{padding:7px 8px;font-size:10px}
+  td{padding:7px 8px}
+  .vei-inp{width:75px;font-size:11px}
+
+  /* Ocultar colunas menos importantes no mobile */
+  thead th:nth-child(3),
+  tbody td:nth-child(3){display:none} /* Emissão */
+
+  .foot{padding:8px 12px;flex-direction:column;gap:6px;align-items:flex-start}
+  .foot-info{font-size:12px}
+  .btn{height:32px;padding:0 12px;font-size:12px}
+
+  /* PDF opts mobile */
+  .pdf-opts{flex-direction:column;gap:12px}
+  .dr{flex-direction:column;gap:6px}
+
+  /* Dashboard mobile */
+  #page-dashboard > div[style*="grid-template-columns:2fr"]{
+    grid-template-columns:1fr!important
+  }
+
+  /* Import mobile */
+  .imp-btns{flex-direction:column;gap:10px}
+  .imp-btn{width:100%;height:90px;flex-direction:row;justify-content:flex-start;padding:0 16px;gap:12px}
+  .imp-icon{font-size:22px}
+  .imp-hint{text-align:left}
+
+  /* Formulário manual mobile */
+  .form-grid{grid-template-columns:1fr 1fr}
+
+  /* Autosave badge mobile */
+  #autosave-badge{font-size:10px;padding:2px 8px}
+}
+
+@media (max-width: 480px){
+  .cards{grid-template-columns:1fr 1fr}
+  .tab{padding:9px 7px;font-size:11px}
+  .topbar-title{font-size:12px}
+  .form-grid{grid-template-columns:1fr}
+  thead th:nth-child(7),
+  tbody td:nth-child(7){display:none} /* Veículo no mobile pequeno */
+}
 </style>
 <body>
 
@@ -188,6 +271,7 @@ input[type=date]:focus{border-color:#1c1917}
   </div>
   <span class="topbar-title">Pagamentos NFS-e &amp; CTe</span>
   <span class="topbar-sub" id="topbar-count">346 documentos</span>
+  <span id="perfil-badge" class="perfil-badge perfil-adm" style="display:none"></span>
   <span id="autosave-badge" style="display:none;background:#dcfce7;color:#15803d;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid #bbf7d0">&#x2713; Salvo automaticamente</span>
   <div style="flex:1"></div>
   <label id="btn-restaurar" class="btn-backup" style="background:#78716c;cursor:pointer" title="Restaurar dados de um backup JSON">
@@ -2168,7 +2252,10 @@ document.addEventListener('keydown', function(e){
 
 
 // ── LOGIN ──────────────────────────────────────────────────
-var SENHA_HASH = 'af690ee094002a0381f590a8bb47cd124f49f33c94f788c318dfe0b5de8e3a22';
+var SENHA_ADM  = 'af690ee094002a0381f590a8bb47cd124f49f33c94f788c318dfe0b5de8e3a22';
+var SENHA_CONS = '8f59a2c272172215c2fd8ed2d25fe776810f18dae2ddfe65a2502999f255b3d2';
+var SENHA_HASH = SENHA_ADM; // compatibilidade
+var _perfilAtual = ''; // 'adm' ou 'consulta'
 
 function hashStr(str){
   // SHA-256 via SubtleCrypto (async)
@@ -2183,9 +2270,18 @@ function fazerLogin(){
   var senha = inp.value;
   if(!senha){ inp.focus(); return; }
   hashStr(senha).then(function(hash){
-    if(hash === SENHA_HASH){
-      // Salvar sessão por 8 horas
+    if(hash === SENHA_ADM){
+      _perfilAtual = 'adm';
       sessionStorage.setItem('auth', hash);
+      sessionStorage.setItem('perfil', 'adm');
+      aplicarPerfil('adm');
+      document.getElementById('login-bg').style.display = 'none';
+      inp.value = '';
+    } else if(hash === SENHA_CONS){
+      _perfilAtual = 'consulta';
+      sessionStorage.setItem('auth', hash);
+      sessionStorage.setItem('perfil', 'consulta');
+      aplicarPerfil('consulta');
       document.getElementById('login-bg').style.display = 'none';
       inp.value = '';
     } else {
@@ -2198,13 +2294,30 @@ function fazerLogin(){
   });
 }
 
+function aplicarPerfil(perfil){
+  _perfilAtual = perfil;
+  var badge = document.getElementById('perfil-badge');
+  if(perfil === 'adm'){
+    document.body.classList.remove('modo-consulta');
+    if(badge){ badge.textContent = '\uD83D\uDD11 ADM'; badge.className='perfil-badge perfil-adm'; badge.style.display=''; }
+  } else {
+    document.body.classList.add('modo-consulta');
+    if(badge){ badge.textContent = '\uD83D\uDC41 Consulta'; badge.className='perfil-badge perfil-cons'; badge.style.display=''; }
+    // Esconder aba Importar no menu
+    document.querySelectorAll('.tab').forEach(function(t){
+      if(t.textContent.indexOf('Importar')>=0) t.style.display='none';
+    });
+  }
+}
+
 function verificarLogin(){
   var auth = sessionStorage.getItem('auth');
-  if(auth === SENHA_HASH){
+  var perfil = sessionStorage.getItem('perfil');
+  if(auth === SENHA_ADM || auth === SENHA_CONS){
     document.getElementById('login-bg').style.display = 'none';
+    aplicarPerfil(perfil === 'consulta' ? 'consulta' : 'adm');
     return true;
   }
-  // Mostrar tela de login e focar no campo
   document.getElementById('login-bg').style.display = 'flex';
   setTimeout(function(){ document.getElementById('login-input').focus(); }, 100);
   return false;
