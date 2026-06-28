@@ -1920,10 +1920,11 @@ function sincronizarSupabase(){
   var hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   setBadge('\u231B Sincronizando...', true);
 
-  // Limpar tabelas e reinserir tudo (abordagem simples e confiável)
-  sbFetch('consolidado', {method:'DELETE', headers: Object.assign({'Prefer':''}, sbHeaders())})
+  // Limpar tabelas usando filtro obrigatório do PostgREST
+  var delHeaders = Object.assign({}, sbHeaders(), {'Prefer': 'return=minimal'});
+  sbFetch('consolidado?id=neq.00000000-0000-0000-0000-000000000000', {method:'DELETE', headers: delHeaders})
   .then(function(){
-    return sbFetch('pagamentos_oji', {method:'DELETE', headers: Object.assign({'Prefer':''}, sbHeaders())});
+    return sbFetch('pagamentos_oji?id=neq.00000000-0000-0000-0000-000000000000', {method:'DELETE', headers: delHeaders});
   })
   .then(function(){
     // Inserir CONS em lotes de 100
