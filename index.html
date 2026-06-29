@@ -290,6 +290,7 @@ body.modo-consulta .mtab{pointer-events:none}
   <div class="tab" onclick="showTab('consolidado')">&#x1F4CA; Consolidado</div>
   <div class="tab" onclick="showTab('oji')">&#x1F4B0; Pagamentos Oji</div>
   <div class="tab" onclick="showTab('pdf')">&#x1F4C4; Relat&#xF3;rio PDF</div>
+  <div class="tab" onclick="showTab('frete')">&#x1F69A; Tabela de Frete</div>
   <div class="tab" onclick="showTab('upload')">&#x2B06;&#xFE0F; Importar Dados</div>
 </div>
 
@@ -488,6 +489,123 @@ body.modo-consulta .mtab{pointer-events:none}
   </div>
 </div>
 
+<!-- TABELA DE FRETE -->
+<div id="page-frete" class="page">
+
+  <!-- Cards resumo -->
+  <div class="cards" id="cards-frete"></div>
+
+  <!-- Barra de ações -->
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+    <input type="text" id="frete-busca" placeholder="Buscar cidade..." oninput="filtrarFrete()" style="width:200px">
+    <button class="btn btn-dark" onclick="abrirModalRota(null)" id="btn-nova-rota">&#x2795; Nova rota</button>
+    <div style="flex:1"></div>
+    <span style="font-size:12px;color:#78716c" id="frete-count"></span>
+  </div>
+
+  <!-- Tabela de rotas -->
+  <div class="panel">
+    <div class="table-wrap">
+      <table id="frete-table">
+        <thead><tr>
+          <th onclick="sortFrete('cidade')" id="fth-cidade">Rota</th>
+          <th onclick="sortFrete('km')" id="fth-km" style="text-align:right">KM</th>
+          <th onclick="sortFrete('pickup')" id="fth-pickup" style="text-align:right">Pick-up</th>
+          <th onclick="sortFrete('truck')" id="fth-truck" style="text-align:right">Truck</th>
+          <th onclick="sortFrete('carreta')" id="fth-carreta" style="text-align:right">Carreta</th>
+          <th class="ns" style="width:70px;text-align:center">A&#xE7;&#xF5;es</th>
+        </tr></thead>
+        <tbody id="tbody-frete"></tbody>
+      </table>
+      <div class="empty" id="empty-frete" style="display:none">Nenhuma rota encontrada.</div>
+    </div>
+  </div>
+
+  <!-- Coletas adicionais -->
+  <div class="panel" style="padding:20px;margin-top:16px">
+    <div style="font-size:14px;font-weight:600;margin-bottom:14px">&#x1F4CD; Coletas Adicionais</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:#78716c;text-transform:uppercase;margin-bottom:10px">Fora de Piracicaba</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:13px;min-width:80px">Pick-up:</span>
+            <input id="col-fora-pickup" type="text" style="width:100px;height:32px;padding:0 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px" oninput="salvarColetas()">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:13px;min-width:80px">Truck:</span>
+            <input id="col-fora-truck" type="text" style="width:100px;height:32px;padding:0 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px" oninput="salvarColetas()">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:13px;min-width:80px">Carreta:</span>
+            <input id="col-fora-carreta" type="text" style="width:100px;height:32px;padding:0 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px" oninput="salvarColetas()">
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:#78716c;text-transform:uppercase;margin-bottom:10px">Em Piracicaba</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:13px;min-width:80px">Pick-up:</span>
+            <input id="col-pira-pickup" type="text" style="width:100px;height:32px;padding:0 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px" oninput="salvarColetas()">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:13px;min-width:80px">Truck:</span>
+            <input id="col-pira-truck" type="text" style="width:100px;height:32px;padding:0 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px" oninput="salvarColetas()">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:13px;min-width:80px">Carreta:</span>
+            <input id="col-pira-carreta" type="text" style="width:100px;height:32px;padding:0 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px" oninput="salvarColetas()">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL ROTA -->
+<div class="modal-bg" id="modal-rota-bg" style="display:none" onclick="if(event.target===this)fecharModalRota()">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-head">
+      <h2 id="modal-rota-title">Nova rota</h2>
+      <p style="font-size:13px;color:#78716c">Preencha os dados da rota</p>
+    </div>
+    <div class="modal-body" style="padding:20px 24px">
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:14px">
+        <div class="fg2" style="grid-column:1/-1">
+          <label class="flbl">Destino *</label>
+          <input type="text" id="rota-cidade" placeholder="Ex: Campinas">
+        </div>
+        <div class="fg2">
+          <label class="flbl">KM</label>
+          <input type="number" id="rota-km" placeholder="Ex: 71" min="0">
+        </div>
+        <div class="fg2">
+          <label class="flbl">Pick-up (R$) *</label>
+          <input type="text" id="rota-pickup" placeholder="Ex: 437,66">
+        </div>
+        <div class="fg2">
+          <label class="flbl">Truck (R$) *</label>
+          <input type="text" id="rota-truck" placeholder="Ex: 999,37 ou Spot">
+        </div>
+        <div class="fg2">
+          <label class="flbl">Carreta (R$) *</label>
+          <input type="text" id="rota-carreta" placeholder="Ex: 1251,12 ou Spot">
+        </div>
+      </div>
+      <div class="smsg" id="msg-rota" style="margin-top:12px"></div>
+    </div>
+    <div class="modal-foot">
+      <div></div>
+      <div class="modal-foot-btns">
+        <button class="btn-cancel-modal" onclick="fecharModalRota()">Cancelar</button>
+        <button class="btn-apply-all" onclick="salvarRota()">&#x2713; Salvar rota</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- IMPORTAR -->
 <div id="page-upload" class="page">
 
@@ -636,11 +754,12 @@ CONS.forEach(function(r){ var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.
 
 // ── TABS ──
 function showTab(name){
-  var names=['dashboard','consolidado','oji','pdf','upload'];
+  var names=['dashboard','consolidado','oji','pdf','frete','upload'];
   document.querySelectorAll('.tab').forEach(function(t,i){ t.classList.toggle('active',names[i]===name); });
   document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
   document.getElementById('page-'+name).classList.add('active');
   if(name==='oji') afOji();
+  if(name==='frete') initFrete();
   if(name==='dashboard') renderDashboard();
   closeAllMS();
 }
@@ -1367,7 +1486,6 @@ function processFile(tipo,input){
     PAG_OJI.forEach(function(p){if(p.data&&p.valor<0)pagMap[p.doc]=p.data;});
 
     if(tipo==='pag'){
-      // Só CSV
       var rows=parseCSV(text);
       rows.forEach(function(r,i){
         var doc=parseInt(getCol(r,['documento','doc','numero','n\u00famero','n\u00ba','nro']));
@@ -1386,9 +1504,12 @@ function processFile(tipo,input){
       var r=(tipo==='cte')?parseXMLCTe(text):parseXMLNFS(text);
       if(r) parsed.push(r);
       else errors.push('XML inv\u00e1lido ou cancelado/n\u00e3o OJI');
-      // NFS-e via XML: placa não vem no XML — pedir ao usuário antes de importar
-      if(tipo==='nfs' && parsed.length>0){
-        pedirPlacaNFS(parsed, errors, pagMap);
+      // XML: mostrar tela de confirmação/resumo antes de importar
+      if(parsed.length>0){
+        mostrarConfirmacaoXML(tipo, parsed, errors, pagMap);
+        input.value=''; return;
+      } else {
+        showImportMsg(0,0,errors,tipo);
         input.value=''; return;
       }
     } else {
@@ -1411,7 +1532,6 @@ function processFile(tipo,input){
       });
     }
 
-    // Montar objetos CONS
     parsed.forEach(function(p){
       var venc=calcVenc(p.em), pgto=pagMap[p.doc]||null;
       var st=calcSt(pgto,venc);
@@ -1423,59 +1543,133 @@ function processFile(tipo,input){
   reader.readAsText(file, isXML?'utf-8':'latin-1');
 }
 
-function pedirPlacaNFS(parsed, errors, pagMap){
-  // Monta modal simples pedindo a placa para cada NFS importada via XML
-  var html='<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px" id="modal-placa-bg">'
-    +'<div style="background:#fff;border-radius:16px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden">'
-    +'<div style="padding:20px 24px 16px;border-bottom:1px solid #e7e5e4">'
-    +'<div style="font-size:15px;font-weight:600;margin-bottom:4px">&#x1F4CD; Placa n\u00e3o encontrada no XML</div>'
-    +'<div style="font-size:13px;color:#78716c">O XML da NFS-e n\u00e3o cont\u00e9m a placa do ve\u00edculo. Informe abaixo para cada nota importada.</div>'
-    +'</div>'
-    +'<div style="padding:20px 24px" id="modal-placa-body">';
+// ── TELA DE CONFIRMAÇÃO XML ───────────────────────────────
+function mostrarConfirmacaoXML(tipo, parsed, errors, pagMap){
+  var isCTe = tipo==='cte';
+  var p = parsed[0]; // sempre 1 por XML
+  var venc = calcVenc(p.em);
+  var pgto = pagMap[p.doc]||null;
+  var st = calcSt(pgto, venc);
+  var stCls = st.key==='ok'?'#15803d':st.key==='late'?'#92400e':st.key==='due'?'#991b1b':'#1d4ed8';
+  var stBg  = st.key==='ok'?'#dcfce7':st.key==='late'?'#fef3c7':st.key==='due'?'#fee2e2':'#dbeafe';
 
-  parsed.forEach(function(p,i){
-    html+='<div style="margin-bottom:14px">'
-      +'<div style="font-size:12px;font-weight:600;color:#78716c;margin-bottom:6px">NFS-e n\u00ba '+p.doc
-      +' &mdash; '+fD(p.em)+' &mdash; '+fR(p.val)+'</div>'
-      +'<input id="placa-nfs-'+i+'" type="text" placeholder="Ex: GAI3G17" maxlength="8"'
-      +' oninput="this.value=this.value.toUpperCase()"'
-      +' style="height:36px;padding:0 12px;border:1px solid #d6d3d1;border-radius:8px;font-size:14px;font-weight:600;letter-spacing:.05em;width:100%;outline:none;color:#1c1917"'
-      +' onkeydown="if(event.key===\'Enter\'&&'+i+'==='+(parsed.length-1)+')confirmarPlacaNFS()">'
+  // Verificar se já existe no sistema
+  var existente = CONS.find(function(c){return c.doc===p.doc;});
+  var jaExiste = !!existente;
+
+  var placaField = isCTe
+    ? '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #f5f5f4">'
+      +'<span style="font-size:12px;color:#78716c;min-width:90px">Ve\u00edculo</span>'
+      +'<span style="font-size:13px;font-weight:600">'+(p.vei||'<span style="color:#a8a29e">N\u00e3o informado</span>')+'</span>'
+      +'</div>'
+    : '<div style="padding:10px 0;border-bottom:1px solid #f5f5f4">'
+      +'<div style="font-size:12px;color:#78716c;margin-bottom:6px">Placa do ve\u00edculo <span style="color:#dc2626">(obrigat\u00f3rio)</span></div>'
+      +'<input id="xml-placa" type="text" placeholder="Ex: GAI3G17" maxlength="8" oninput="this.value=this.value.toUpperCase()"'
+      +' style="height:38px;padding:0 12px;border:1px solid #d6d3d1;border-radius:8px;font-size:14px;font-weight:600;'
+      +'letter-spacing:.05em;width:100%;outline:none;color:#1c1917;transition:border-color .15s">'
       +'</div>';
-  });
 
-  html+='</div>'
+  var alertaExiste = jaExiste
+    ? '<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#92400e">'
+      +'<strong>\u26A0 Documento j\u00e1 existe no sistema!</strong> Ao confirmar, voc\u00ea decidir\u00e1 se mant\u00e9m o original ou substitui.'
+      +'</div>'
+    : '';
+
+  var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;'
+    +'align-items:center;justify-content:center;padding:16px" id="modal-xml-confirm">'
+    +'<div style="background:#fff;border-radius:16px;width:100%;max-width:480px;'
+    +'box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden">'
+
+    // Header
+    +'<div style="padding:20px 24px 16px;border-bottom:1px solid #e7e5e4;display:flex;align-items:center;gap:12px">'
+    +'<div style="width:40px;height:40px;border-radius:10px;background:'+(isCTe?'#ede9fe':'#d1fae5')
+    +';display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">'
+    +(isCTe?'&#x1F4E6;':'&#x1F9FE;')+'</div>'
+    +'<div><div style="font-size:15px;font-weight:700;color:#1c1917">Confirmar importa\u00e7\u00e3o de '+(isCTe?'CTe':'NFS-e')+'</div>'
+    +'<div style="font-size:12px;color:#78716c">Revise os dados antes de importar</div>'
+    +'</div></div>'
+
+    // Body
+    +'<div style="padding:20px 24px">'
+    +alertaExiste
+
+    // Dados do documento
+    +'<div style="background:#fafaf9;border:1px solid #e7e5e4;border-radius:10px;padding:14px 16px;margin-bottom:16px">'
+
+    +'<div style="display:flex;align-items:center;gap:8px;padding:0 0 10px;border-bottom:1px solid #f5f5f4;margin-bottom:4px">'
+    +'<span style="background:'+(isCTe?'#ede9fe':'#d1fae5')+';color:'+(isCTe?'#5b21b6':'#065f46')
+    +';font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">'+(isCTe?'CTe':'NFS-e')+'</span>'
+    +'<span style="font-size:18px;font-weight:700;color:#1c1917">N\u00ba '+p.doc+'</span>'
+    +'<span style="margin-left:auto;background:'+stBg+';color:'+stCls+';font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">'+st.lbl+'</span>'
+    +'</div>'
+
+    +'<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #f5f5f4">'
+    +'<span style="font-size:12px;color:#78716c;min-width:90px">Emiss\u00e3o</span>'
+    +'<span style="font-size:13px;font-weight:600">'+fD(p.em)+'</span>'
+    +'</div>'
+
+    +'<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #f5f5f4">'
+    +'<span style="font-size:12px;color:#78716c;min-width:90px">Vencimento</span>'
+    +'<span style="font-size:13px;font-weight:600">'+fD(venc)+'</span>'
+    +'</div>'
+
+    +'<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #f5f5f4">'
+    +'<span style="font-size:12px;color:#78716c;min-width:90px">Valor</span>'
+    +'<span style="font-size:15px;font-weight:700;color:#1c1917">'+fR(p.val)+'</span>'
+    +'</div>'
+
+    +placaField
+    +'</div>'
+    +'</div>'
+
+    // Footer
     +'<div style="padding:14px 24px;border-top:1px solid #e7e5e4;display:flex;gap:8px;justify-content:flex-end;background:#fafaf9">'
-    +'<button onclick="document.getElementById(\'modal-placa-bg\').remove()" style="height:34px;padding:0 16px;border-radius:8px;border:1px solid #d6d3d1;background:#fff;font-size:13px;cursor:pointer">Cancelar</button>'
-    +'<button onclick="confirmarPlacaNFS()" style="height:34px;padding:0 16px;border-radius:8px;border:none;background:#1c1917;color:#fff;font-size:13px;font-weight:500;cursor:pointer">&#x2713; Confirmar e importar</button>'
+    +'<button onclick="document.getElementById(\'modal-xml-confirm\').remove()" '
+    +'style="height:38px;padding:0 18px;border-radius:8px;border:1px solid #d6d3d1;background:#fff;font-size:13px;cursor:pointer;color:#1c1917">Cancelar</button>'
+    +'<button onclick="confirmarXML()" '
+    +'style="height:38px;padding:0 20px;border-radius:8px;border:none;background:#1c1917;color:#fff;font-size:13px;font-weight:600;cursor:pointer">'
+    +'\u2713 Confirmar importa\u00e7\u00e3o</button>'
     +'</div>'
     +'</div></div>';
 
   document.body.insertAdjacentHTML('beforeend', html);
-  // Focar no primeiro campo
-  setTimeout(function(){ var inp=document.getElementById('placa-nfs-0'); if(inp)inp.focus(); }, 100);
+  if(!isCTe) setTimeout(function(){ var inp=document.getElementById('xml-placa'); if(inp)inp.focus(); }, 150);
 
-  // Guardar parsed e pagMap para usar ao confirmar
-  window._placaNFSParsed = parsed;
-  window._placaNFSErrors = errors;
-  window._placaNFSPagMap = pagMap;
+  // Guardar contexto
+  window._xmlTipo   = tipo;
+  window._xmlParsed = parsed;
+  window._xmlErrors = errors;
+  window._xmlPagMap = pagMap;
 }
 
-function confirmarPlacaNFS(){
-  var parsed=window._placaNFSParsed;
-  var errors=window._placaNFSErrors;
-  var pagMap=window._placaNFSPagMap;
-  var newItems=[];
-  parsed.forEach(function(p,i){
-    var inp=document.getElementById('placa-nfs-'+i);
-    var vei=inp?inp.value.trim().toUpperCase():'';
-    var venc=calcVenc(p.em), pgto=pagMap[p.doc]||null;
-    var st=calcSt(pgto,venc);
-    newItems.push({doc:p.doc,tipo:'NFSe',em:p.em,venc:venc,pgto:pgto,val:p.val,vei:vei,stKey:st.key,stLbl:st.lbl});
-  });
-  document.getElementById('modal-placa-bg').remove();
-  handleConsImport(newItems,errors,'nfs');
+function confirmarXML(){
+  var tipo   = window._xmlTipo;
+  var parsed = window._xmlParsed;
+  var errors = window._xmlErrors;
+  var pagMap = window._xmlPagMap;
+  var p = parsed[0];
+
+  // Pegar placa (NFS pede no campo, CTe já vem do XML)
+  var vei = p.vei || '';
+  if(tipo==='nfs'){
+    var inp = document.getElementById('xml-placa');
+    vei = inp ? inp.value.trim().toUpperCase() : '';
+  }
+
+  document.getElementById('modal-xml-confirm').remove();
+
+  var venc = calcVenc(p.em), pgto = pagMap[p.doc]||null;
+  var st = calcSt(pgto, venc);
+  var item = {doc:p.doc, tipo:tipo==='cte'?'CTe':'NFSe', em:p.em, venc:venc,
+              pgto:pgto, val:p.val, vei:vei, stKey:st.key, stLbl:st.lbl};
+
+  handleConsImport([item], errors, tipo);
   marcarAlteracao();
+}
+
+function pedirPlacaNFS(parsed, errors, pagMap){
+  // Mantido por compatibilidade — agora usa mostrarConfirmacaoXML
+  mostrarConfirmacaoXML('nfs', parsed, errors, pagMap);
 }
 
 function handleConsImport(newItems,errors,tipo){
@@ -2116,7 +2310,7 @@ function carregarDados(){
 
         var ts = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
         setBadge('\u2713 '+CONS.length+' docs carregados da nuvem \u00e0s '+ts, true);
-        return true;
+        return carregarFreteSupabase().then(function(){ return true; });
       });
     });
   })
@@ -2321,6 +2515,211 @@ function verificarLogin(){
   document.getElementById('login-bg').style.display = 'flex';
   setTimeout(function(){ document.getElementById('login-input').focus(); }, 100);
   return false;
+}
+
+
+// ── TABELA DE FRETE ───────────────────────────────────────
+var FRETE = {"rotas":[{"cidade":"Americana","km":38,"pickup":324.41,"truck":817.84,"carreta":1013.54,"rota":"Piracicaba - SP ⇄ Americana - SP"},{"cidade":"Araras","km":52,"pickup":402.26,"truck":936.97,"carreta":1169.46,"rota":"Piracicaba - SP ⇄ Araras - SP"},{"cidade":"Barueri","km":145,"pickup":710.16,"truck":1436.18,"carreta":1822.79,"rota":"Piracicaba - SP ⇄ Barueri - SP"},{"cidade":"Caieiras","km":146,"pickup":664.15,"truck":1362.44,"carreta":1726.28,"rota":"Piracicaba - SP ⇄ Caieiras - SP"},{"cidade":"Cajamar","km":126,"pickup":639.38,"truck":1322.72,"carreta":1674.31,"rota":"Piracicaba - SP ⇄ Cajamar - SP"},{"cidade":"Campinas","km":71,"pickup":437.66,"truck":999.37,"carreta":1251.12,"rota":"Piracicaba - SP ⇄ Campinas - SP"},{"cidade":"Cosmópolis","km":76,"pickup":455.35,"truck":991.67,"carreta":1288.25,"rota":"Piracicaba - SP ⇄ Cosmópolis - SP"},{"cidade":"Cotia","km":151,"pickup":724.31,"truck":1458.87,"carreta":1852.5,"rota":"Piracicaba - SP ⇄ Cotia - SP"},{"cidade":"Diadema","km":176,"pickup":798.64,"truck":1578.0,"carreta":2008.41,"rota":"Piracicaba - SP ⇄ Diadema - SP"},{"cidade":"Embu das Artes","km":166,"pickup":777.4,"truck":1543.97,"carreta":1963.86,"rota":"Piracicaba - SP ⇄ Embu das Artes - SP"},{"cidade":"Franco da Rocha","km":133,"pickup":660.62,"truck":1356.76,"carreta":1718.86,"rota":"Piracicaba - SP ⇄ Franco da Rocha - SP"},{"cidade":"Guarulhos","km":172,"pickup":798.64,"truck":1522.63,"carreta":2008.41,"rota":"Piracicaba - SP ⇄ Guarulhos - SP"},{"cidade":"Indaiatuba","km":76,"pickup":508.44,"truck":1112.82,"carreta":1399.61,"rota":"Piracicaba - SP ⇄ Indaiatuba - SP"},{"cidade":"Itapevi","km":143,"pickup":696.0,"truck":1419.16,"carreta":1800.53,"rota":"Piracicaba - SP ⇄ Itapevi - SP"},{"cidade":"Itapira","km":109,"pickup":575.68,"truck":1214.94,"carreta":1533.24,"rota":"Piracicaba - SP ⇄ Itapira - SP"},{"cidade":"Itaquaquecetuba","km":190,"pickup":862.34,"truck":1680.11,"carreta":2142.05,"rota":"Piracicaba - SP ⇄ Itaquaquecetuba - SP"},{"cidade":"Itatiba","km":117,"pickup":603.98,"truck":1265.99,"carreta":1600.07,"rota":"Piracicaba - SP ⇄ Itatiba - SP"},{"cidade":"Itu","km":80,"pickup":473.04,"truck":1056.1,"carreta":1325.36,"rota":"Piracicaba - SP ⇄ Itu - SP"},{"cidade":"Jaboticabal","km":207,"pickup":922.5,"truck":1770.88,"carreta":2260.84,"rota":"Piracicaba - SP ⇄ Jaboticabal - SP"},{"cidade":"Jacareí","km":226,"pickup":989.74,"truck":1884.34,"carreta":2409.32,"rota":"Piracicaba - SP ⇄ Jacareí - SP"},{"cidade":"Jardinópolis","km":224,"pickup":982.67,"truck":1867.32,"carreta":2387.05,"rota":"Piracicaba - SP ⇄ Jardinópolis - SP"},{"cidade":"Jarinu","km":132,"pickup":621.69,"truck":1294.36,"carreta":1637.19,"rota":"Piracicaba - SP ⇄ Jarinu - SP"},{"cidade":"Jundiaí","km":104,"pickup":557.98,"truck":1192.25,"carreta":1503.55,"rota":"Piracicaba - SP ⇄ Jundiaí - SP"},{"cidade":"Limeira","km":36,"pickup":317.33,"truck":800.82,"carreta":991.26,"rota":"Piracicaba - SP ⇄ Limeira - SP"},{"cidade":"Mauá","km":226,"pickup":989.74,"truck":1884.34,"carreta":2409.32,"rota":"Piracicaba - SP ⇄ Mauá - SP"},{"cidade":"Mogi das Cruzes","km":211,"pickup":936.66,"truck":1799.24,"carreta":2297.95,"rota":"Piracicaba - SP ⇄ Mogi das Cruzes - SP"},{"cidade":"Mogi Mirim","km":93,"pickup":508.44,"truck":1107.16,"carreta":1392.18,"rota":"Piracicaba - SP ⇄ Mogi Mirim - SP"},{"cidade":"Osasco","km":154,"pickup":734.94,"truck":1475.89,"carreta":1874.76,"rota":"Piracicaba - SP ⇄ Osasco - SP"},{"cidade":"Piracicaba x Piracicaba","km":0,"pickup":189.92,"truck":596.6,"carreta":723.99,"rota":"Piracicaba - SP ⇄ Piracicaba - SP"},{"cidade":"Ribeirão Preto","km":196,"pickup":883.57,"truck":1708.48,"carreta":2179.17,"rota":"Piracicaba - SP ⇄ Ribeirão Preto - SP"},{"cidade":"Rio Claro","km":41,"pickup":331.49,"truck":823.51,"carreta":1020.96,"rota":"Piracicaba - SP ⇄ Rio Claro - SP"},{"cidade":"Saltinho","km":34,"pickup":295.0,"truck":681.69,"carreta":835.36,"rota":"Piracicaba - SP ⇄ Saltinho - SP"},{"cidade":"Salto","km":64,"pickup":458.88,"truck":1033.41,"carreta":1295.67,"rota":"Piracicaba - SP ⇄ Salto - SP"},{"cidade":"Santo André","km":182,"pickup":809.25,"truck":1595.02,"carreta":2030.68,"rota":"Piracicaba - SP ⇄ Santo André - SP"},{"cidade":"São Bernardo do Campo","km":215,"pickup":819.87,"truck":1612.04,"carreta":2052.96,"rota":"Piracicaba - SP ⇄ São Bernardo do Campo - SP"},{"cidade":"São Caetano do Sul","km":172,"pickup":773.87,"truck":1538.29,"carreta":1956.43,"rota":"Piracicaba - SP ⇄ São Caetano do Sul - SP"},{"cidade":"São Paulo","km":165,"pickup":756.16,"truck":1456.95,"carreta":1919.32,"rota":"Piracicaba - SP ⇄ São Paulo - SP"},{"cidade":"Sorocaba","km":96,"pickup":575.68,"truck":1220.61,"carreta":1540.68,"rota":"Piracicaba - SP ⇄ Sorocaba - SP"},{"cidade":"Sumaré","km":51,"pickup":356.26,"truck":868.9,"carreta":1080.36,"rota":"Piracicaba - SP ⇄ Sumaré - SP"},{"cidade":"Taboão da Serra","km":167,"pickup":777.4,"truck":1543.97,"carreta":1963.86,"rota":"Piracicaba - SP ⇄ Taboão da Serra - SP"},{"cidade":"Tatuí","km":92,"pickup":494.28,"truck":1084.46,"carreta":1362.48,"rota":"Piracicaba - SP ⇄ Tatuí - SP"},{"cidade":"Taubaté","km":266,"pickup":1159.62,"truck":2156.64,"carreta":2765.7,"rota":"Piracicaba - SP ⇄ Taubaté - SP"},{"cidade":"Valinhos","km":80,"pickup":494.28,"truck":1090.14,"carreta":1369.92,"rota":"Piracicaba - SP ⇄ Valinhos - SP"},{"cidade":"Várzea Paulista","km":113,"pickup":618.14,"truck":1188.73,"carreta":1555.52,"rota":"Piracicaba - SP ⇄ Várzea Paulista - SP"},{"cidade":"Vinhedo","km":92,"pickup":515.51,"truck":1124.18,"carreta":1414.45,"rota":"Piracicaba - SP ⇄ Vinhedo - SP"},{"cidade":"São José dos Campos","km":239,"pickup":911.16,"truck":1952.41,"carreta":2171.75,"rota":"Piracicaba - SP ⇄ São José dos Campos - SP"},{"cidade":"Santana de Parnaíba x Rio Claro (EMBAPAX)","km":195,"pickup":883.57,"truck":1714.15,"carreta":2171.75,"rota":"Santana de Parnaíba - SP ⇄ Rio Claro - SP (EMBAPAX)"},{"cidade":"Santa Bárbara d'Oeste","km":0,"pickup":310.99,"truck":812.96,"carreta":1007.13,"rota":"Piracicaba - SP ⇄ Santa Bárbara d'Oeste - SP"},{"cidade":"Boituva","km":84,"pickup":518.0,"truck":1087.8,"carreta":1366.79,"rota":"Piracicaba - SP ⇄ Boituva - SP"},{"cidade":"Mogi das Cruzes (2)","km":212,"pickup":1017.89,"truck":1836.29,"carreta":2346.29,"rota":"Piracicaba - SP ⇄ Mogi das Cruzes (2) - SP"},{"cidade":"Suzano","km":201,"pickup":974.94,"truck":1771.97,"carreta":2262.11,"rota":"Piracicaba - SP ⇄ Suzano - SP"},{"cidade":"Santa Gertrudes","km":42,"pickup":353.96,"truck":842.2,"carreta":1045.39,"rota":"Piracicaba - SP ⇄ Santa Gertrudes - SP"}],"coletas":{"fora_pickup":135.0,"fora_truck":"Spot","fora_carreta":"Spot","pira_pickup":47.5,"pira_truck":"Spot","pira_carreta":"Spot"}};
+var _freteFiltrado = [];
+var _freteSort = {k:'cidade', d:1};
+var _rotaEditIdx = null;
+
+function initFrete(){
+  // Preencher coletas
+  var c = FRETE.coletas || {};
+  document.getElementById('col-fora-pickup').value = c.fora_pickup || '';
+  document.getElementById('col-fora-truck').value  = c.fora_truck  || '';
+  document.getElementById('col-fora-carreta').value= c.fora_carreta|| '';
+  document.getElementById('col-pira-pickup').value = c.pira_pickup || '';
+  document.getElementById('col-pira-truck').value  = c.pira_truck  || '';
+  document.getElementById('col-pira-carreta').value= c.pira_carreta|| '';
+  filtrarFrete();
+  renderCardsF();
+  // Ocultar botão nova rota no modo consulta
+  if(document.body.classList.contains('modo-consulta')){
+    var b=document.getElementById('btn-nova-rota'); if(b)b.style.display='none';
+  }
+}
+
+function renderCardsF(){
+  var rotas = FRETE.rotas||[];
+  var maxP = Math.max.apply(null, rotas.map(function(r){return typeof r.pickup==='number'?r.pickup:0;}));
+  var minP = Math.min.apply(null, rotas.filter(function(r){return typeof r.pickup==='number';} ).map(function(r){return r.pickup;}));
+  document.getElementById('cards-frete').innerHTML =
+    '<div class="card"><div class="card-lbl">Total de rotas</div><div class="card-val">'+rotas.length+'</div><div class="card-sub">cidades atendidas</div></div>'
+    +'<div class="card ok"><div class="card-lbl">Menor tarifa Pick-up</div><div class="card-val" style="font-size:18px">'+fR(minP)+'</div><div class="card-sub">menor valor</div></div>'
+    +'<div class="card danger"><div class="card-lbl">Maior tarifa Pick-up</div><div class="card-val" style="font-size:18px">'+fR(maxP)+'</div><div class="card-sub">maior valor</div></div>'
+    +'<div class="card accent"><div class="card-lbl">Coleta adicional Pira</div><div class="card-val" style="font-size:18px">'+fR(FRETE.coletas.pira_pickup||0)+'</div><div class="card-sub">Pick-up</div></div>';
+}
+
+function filtrarFrete(){
+  var q = (document.getElementById('frete-busca').value||'').toLowerCase();
+  _freteFiltrado = (FRETE.rotas||[]).filter(function(r){
+    var texto=(r.rota||r.cidade).toLowerCase(); return !q || texto.indexOf(q)>=0;
+  });
+  sortFreteArr();
+  renderFrete();
+}
+
+function sortFrete(k){
+  if(_freteSort.k===k) _freteSort.d*=-1; else {_freteSort.k=k;_freteSort.d=1;}
+  document.querySelectorAll('#frete-table thead th').forEach(function(t){if(!t.classList.contains('ns'))t.className='';} );
+  var el=document.getElementById('fth-'+k);
+  if(el) el.className=_freteSort.d===1?'asc':'desc';
+  sortFreteArr(); renderFrete();
+}
+
+function sortFreteArr(){
+  var k=_freteSort.k,d=_freteSort.d;
+  _freteFiltrado.sort(function(a,b){
+    var av=a[k], bv=b[k];
+    if(typeof av==='string') return d*(av.localeCompare(bv,'pt-BR'));
+    if(av===null||av===undefined) return 1;
+    if(bv===null||bv===undefined) return -1;
+    return d*(av-bv);
+  });
+}
+
+function fV(v){
+  if(typeof v==='string') return v;
+  if(typeof v==='number') return fR(v);
+  return '—';
+}
+
+function renderFrete(){
+  var tb=document.getElementById('tbody-frete');
+  var em=document.getElementById('empty-frete');
+  var isADM = !document.body.classList.contains('modo-consulta');
+  if(!_freteFiltrado.length){tb.innerHTML='';em.style.display='';}
+  else{
+    em.style.display='none';
+    tb.innerHTML=_freteFiltrado.map(function(r,i){
+      var idx=( FRETE.rotas||[]).indexOf(r);
+      var acoes = isADM
+        ? '<td style="text-align:center;white-space:nowrap">'
+          +'<button class="vei-ok" onclick="abrirModalRota('+idx+')" style="margin-right:4px" title="Editar">&#x270F;</button>'
+          +'<button class="btn-del" onclick="excluirRota('+idx+')" title="Excluir">&#x2715;</button>'
+          +'</td>'
+        : '<td></td>';
+      return '<tr>'
+        +'<td style="font-weight:600">'+(r.rota||r.cidade)+'</td>'
+        +'<td style="text-align:right">'+(r.km||'—')+'</td>'
+        +'<td style="text-align:right;color:#16a34a;font-weight:500">'+fV(r.pickup)+'</td>'
+        +'<td style="text-align:right">'+fV(r.truck)+'</td>'
+        +'<td style="text-align:right">'+fV(r.carreta)+'</td>'
+        +acoes
+        +'</tr>';
+    }).join('');
+  }
+  document.getElementById('frete-count').textContent=_freteFiltrado.length+' de '+(FRETE.rotas||[]).length+' rotas';
+}
+
+function abrirModalRota(idx){
+  _rotaEditIdx = idx;
+  var r = idx!==null ? FRETE.rotas[idx] : null;
+  document.getElementById('modal-rota-title').textContent = r ? 'Editar rota' : 'Nova rota';
+  var destino = r ? (r.rota ? r.rota.split('\u21c4').pop().trim().replace(/\s*-\s*SP\s*$/,'').trim() : r.cidade) : '';
+  document.getElementById('rota-cidade').value = destino;
+  document.getElementById('rota-km').value      = r ? (r.km||'') : '';
+  document.getElementById('rota-pickup').value  = r ? (typeof r.pickup==='number'?r.pickup.toFixed(2).replace('.',','):r.pickup) : '';
+  document.getElementById('rota-truck').value   = r ? (typeof r.truck==='number'?r.truck.toFixed(2).replace('.',','):r.truck) : '';
+  document.getElementById('rota-carreta').value = r ? (typeof r.carreta==='number'?r.carreta.toFixed(2).replace('.',','):r.carreta) : '';
+  document.getElementById('msg-rota').style.display='none';
+  document.getElementById('modal-rota-bg').style.display='flex';
+  document.body.style.overflow='hidden';
+  setTimeout(function(){document.getElementById('rota-cidade').focus();},100);
+}
+
+function fecharModalRota(){
+  document.getElementById('modal-rota-bg').style.display='none';
+  document.body.style.overflow='';
+}
+
+function parseValFrete(s){
+  if(!s) return null;
+  s=s.trim();
+  if(s.toLowerCase()==='spot') return 'Spot';
+  var n=parseFloat(s.replace('.','').replace(',','.'));
+  return isNaN(n)?s:n;
+}
+
+function salvarRota(){
+  var cidade=document.getElementById('rota-cidade').value.trim();
+  var km=parseInt(document.getElementById('rota-km').value)||0;
+  var pickup=parseValFrete(document.getElementById('rota-pickup').value);
+  var truck=parseValFrete(document.getElementById('rota-truck').value);
+  var carreta=parseValFrete(document.getElementById('rota-carreta').value);
+  var msg=document.getElementById('msg-rota');
+  if(!cidade||pickup===null||truck===null||carreta===null){
+    msg.className='smsg msg-err'; msg.textContent='Preencha cidade e todas as tarifas.'; msg.style.display='block'; return;
+  }
+  var rota={cidade:cidade,km:km,pickup:pickup,truck:truck,carreta:carreta};
+  if(_rotaEditIdx!==null){
+    FRETE.rotas[_rotaEditIdx]=rota;
+  }else{
+    if(!FRETE.rotas) FRETE.rotas=[];
+    FRETE.rotas.push(rota);
+  }
+  fecharModalRota();
+  filtrarFrete(); renderCardsF();
+  salvarFreteSupabase();
+}
+
+function excluirRota(idx){
+  var r=FRETE.rotas[idx];
+  if(!confirm('Excluir rota para '+r.cidade+'?\nEsta ação não pode ser desfeita.')) return;
+  FRETE.rotas.splice(idx,1);
+  filtrarFrete(); renderCardsF();
+  salvarFreteSupabase();
+}
+
+function salvarColetas(){
+  FRETE.coletas = {
+    fora_pickup: document.getElementById('col-fora-pickup').value,
+    fora_truck:  document.getElementById('col-fora-truck').value,
+    fora_carreta:document.getElementById('col-fora-carreta').value,
+    pira_pickup: document.getElementById('col-pira-pickup').value,
+    pira_truck:  document.getElementById('col-pira-truck').value,
+    pira_carreta:document.getElementById('col-pira-carreta').value,
+  };
+  salvarFreteSupabase();
+}
+
+function salvarFreteSupabase(){
+  // Salvar no localStorage como cache imediato
+  try{ localStorage.setItem('frete_data', JSON.stringify(FRETE)); }catch(e){}
+  // Salvar no Supabase
+  if(!_sbOnline) return;
+  sbFetch('tabela_frete?id=neq.00000000-0000-0000-0000-000000000000',{method:'DELETE',headers:Object.assign({},sbHeaders(),{'Prefer':'return=minimal'})})
+  .then(function(){
+    return sbFetch('tabela_frete',{method:'POST',body:JSON.stringify([{dados:JSON.stringify(FRETE)}])});
+  })
+  .then(function(){
+    var badge=document.getElementById('autosave-badge');
+    badge.textContent='\u2713 Tabela de frete salva';
+    badge.style.display='';
+  })
+  .catch(function(e){console.error('Erro salvar frete:',e);});
+}
+
+function carregarFreteSupabase(){
+  // Tentar carregar do Supabase
+  if(!_sbOnline){
+    var cached=localStorage.getItem('frete_data');
+    if(cached){ try{FRETE=JSON.parse(cached);}catch(e){} }
+    return Promise.resolve();
+  }
+  return sbFetch('tabela_frete?select=dados&limit=1')
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    if(Array.isArray(rows)&&rows.length>0&&rows[0].dados){
+      try{FRETE=JSON.parse(rows[0].dados);}catch(e){}
+    }
+  })
+  .catch(function(){
+    var cached=localStorage.getItem('frete_data');
+    if(cached){try{FRETE=JSON.parse(cached);}catch(e){}}
+  });
 }
 
 // ── INIT ──
