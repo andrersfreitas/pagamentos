@@ -257,6 +257,16 @@ body.modo-consulta .mtab{pointer-events:none}
   #page-consolidado thead th:nth-child(7),
   #page-consolidado tbody td:nth-child(7){display:none} /* Veículo no mobile pequeno */
 }
+
+/* ── TABELA DE FRETE: garantir scroll horizontal real no mobile ── */
+@media (max-width: 768px){
+  #page-frete .tw{overflow-x:scroll!important;-webkit-overflow-scrolling:touch}
+  #frete-table{table-layout:auto;width:auto!important;min-width:620px}
+  #frete-table th, #frete-table td{white-space:nowrap}
+  #fth-cidade, #page-frete tbody td:first-child{min-width:170px!important;max-width:170px!important}
+  #fth-km{min-width:50px}
+  #fth-pickup, #fth-truck, #fth-carreta{min-width:90px}
+}
 </style>
 <body>
 
@@ -2992,7 +3002,7 @@ function aplicarFreteData(novo){
 
 // ── ANTI-CACHE: forçar reload se a página estiver em cache antigo ──
 (function(){
-  var BUILD_TS = '20260630132401';
+  var BUILD_TS = '20260630133037';
   var lastSeen = localStorage.getItem('app_build_ts');
   if(lastSeen && lastSeen !== BUILD_TS){
     // Nova versão detectada — limpar cache de visualização e recarregar uma vez
