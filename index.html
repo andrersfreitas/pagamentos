@@ -2,6 +2,9 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistema de Pagamentos NFS-e &amp; CTe</title>
 <style>
@@ -216,9 +219,9 @@ body.modo-consulta .mtab{pointer-events:none}
   td{padding:7px 8px}
   .vei-inp{width:75px;font-size:11px}
 
-  /* Ocultar colunas menos importantes no mobile */
-  thead th:nth-child(3),
-  tbody td:nth-child(3){display:none} /* Emissão */
+  /* Ocultar colunas menos importantes no mobile — APENAS na tabela Consolidado */
+  #page-consolidado thead th:nth-child(3),
+  #page-consolidado tbody td:nth-child(3){display:none} /* Emissão */
 
   .foot{padding:8px 12px;flex-direction:column;gap:6px;align-items:flex-start}
   .foot-info{font-size:12px}
@@ -251,8 +254,8 @@ body.modo-consulta .mtab{pointer-events:none}
   .tab{padding:9px 7px;font-size:11px}
   .topbar-title{font-size:12px}
   .form-grid{grid-template-columns:1fr}
-  thead th:nth-child(7),
-  tbody td:nth-child(7){display:none} /* Veículo no mobile pequeno */
+  #page-consolidado thead th:nth-child(7),
+  #page-consolidado tbody td:nth-child(7){display:none} /* Veículo no mobile pequeno */
 }
 </style>
 <body>
@@ -2986,6 +2989,22 @@ function aplicarFreteData(novo){
   FRETE.rotas = novo.rotas || [];
   FRETE.coletas = novo.coletas || {};
 }
+
+// ── ANTI-CACHE: forçar reload se a página estiver em cache antigo ──
+(function(){
+  var BUILD_TS = '20260630132401';
+  var lastSeen = localStorage.getItem('app_build_ts');
+  if(lastSeen && lastSeen !== BUILD_TS){
+    // Nova versão detectada — limpar cache de visualização e recarregar uma vez
+    if(!sessionStorage.getItem('reloaded_once')){
+      sessionStorage.setItem('reloaded_once','1');
+      localStorage.setItem('app_build_ts', BUILD_TS);
+      location.reload(true);
+    }
+  } else {
+    localStorage.setItem('app_build_ts', BUILD_TS);
+  }
+})();
 
 // ── INIT ──
 // Interceptar push/splice em CONS e PAG_OJI para autosave automático
