@@ -680,7 +680,7 @@ body.modo-consulta .mtab{pointer-events:none}
 
   <!-- LANÇAMENTO MANUAL -->
   <div class="panel" style="padding:22px">
-    <div style="font-size:15px;font-weight:600;margin-bottom:14px">&#x270F;&#xFE0F; Lan&#xE7;amento manual</div>
+    <div style="font-size:15px;font-weight:600;margin-bottom:14px">&#x1F4DD; Lan&#xE7;amento manual</div>
     <div style="display:flex;gap:0;border-bottom:1px solid #e7e5e4;margin-bottom:20px">
       <div class="mtab active" id="mtab-cte" onclick="showMtab('cte')">CTe</div>
       <div class="mtab" id="mtab-nfs" onclick="showMtab('nfs')">NFS-e</div>
@@ -2193,7 +2193,19 @@ function sbHeaders(){
 }
 
 function sbFetch(path, opts){
-  return fetch(SB_URL + '/rest/v1/' + path, Object.assign({headers: sbHeaders()}, opts));
+  opts = opts || {};
+  // Cache-busting: GETs recebem timestamp único para evitar cache de rede no mobile
+  var method = (opts.method || 'GET').toUpperCase();
+  if(method === 'GET'){
+    path += (path.indexOf('?')>=0 ? '&' : '?') + '_cb=' + Date.now();
+  }
+  var finalOpts = Object.assign({
+    headers: sbHeaders(),
+    cache: 'no-store'
+  }, opts);
+  // Garantir que headers customizados não sejam sobrescritos
+  if(opts.headers) finalOpts.headers = opts.headers;
+  return fetch(SB_URL + '/rest/v1/' + path, finalOpts);
 }
 
 // Testar conexão ao Supabase
@@ -2596,14 +2608,14 @@ function renderCardsF(){
     +'<div class="card-lbl">Coleta adicional fora de Piracicaba</div>'
     +'<div class="card-val" style="font-size:18px;display:flex;align-items:center;gap:8px">'
     +coletaCardVal(c.fora_pickup,'fora')
-    +'<button class="vei-ok" onclick="editarCardColeta(\'fora\')" title="Editar" style="font-size:10px;padding:2px 6px;height:auto">&#x270F;</button>'
+    +'<button class="vei-ok" onclick="editarCardColeta(\'fora\')" title="Editar" style="font-size:10px;padding:2px 6px;height:auto;display:inline-flex;align-items:center;justify-content:center"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
     +'</div><div class="card-sub">Pick-up &middot; valor negociado</div></div>'
 
     +'<div class="card late" style="position:relative">'
     +'<div class="card-lbl">Coleta adicional em Piracicaba</div>'
     +'<div class="card-val" style="font-size:18px;display:flex;align-items:center;gap:8px">'
     +coletaCardVal(c.pira_pickup,'pira')
-    +'<button class="vei-ok" onclick="editarCardColeta(\'pira\')" title="Editar" style="font-size:10px;padding:2px 6px;height:auto">&#x270F;</button>'
+    +'<button class="vei-ok" onclick="editarCardColeta(\'pira\')" title="Editar" style="font-size:10px;padding:2px 6px;height:auto;display:inline-flex;align-items:center;justify-content:center"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
     +'</div><div class="card-sub">Pick-up &middot; valor negociado</div></div>';
 
   // Esconder lápis no modo consulta
@@ -2680,7 +2692,7 @@ function renderFrete(){
       var idx=( FRETE.rotas||[]).indexOf(r);
       var acoes = isADM
         ? '<td style="text-align:center;white-space:nowrap">'
-          +'<button class="vei-ok" onclick="abrirModalRota('+idx+')" style="margin-right:4px" title="Editar">&#x270F;</button>'
+          +'<button class="vei-ok" onclick="abrirModalRota('+idx+')" style="margin-right:4px;display:inline-flex;align-items:center;justify-content:center" title="Editar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
           +'<button class="btn-del" onclick="excluirRota('+idx+')" title="Excluir">&#x2715;</button>'
           +'</td>'
         : '<td></td>';
@@ -2942,14 +2954,25 @@ function salvarFreteSupabase(){
     b.style.display='';
     return;
   }
-  var delHeaders = Object.assign({}, sbHeaders(), {'Prefer':'return=minimal'});
-  sbFetch('tabela_frete?id=neq.00000000-0000-0000-0000-000000000000',{method:'DELETE', headers:delHeaders})
+  // Estratégia segura: INSERIR o novo registro PRIMEIRO, só depois remover os antigos.
+  // Isso garante que a tabela nunca fica vazia se o INSERT falhar.
+  sbFetch('tabela_frete',{method:'POST', body:JSON.stringify([{dados:JSON.stringify(FRETE)}])})
   .then(function(r){
-    if(!r.ok) throw new Error('Falha ao limpar tabela_frete (HTTP '+r.status+'). Verifique se a tabela existe no Supabase.');
-    return sbFetch('tabela_frete',{method:'POST', body:JSON.stringify([{dados:JSON.stringify(FRETE)}])});
+    if(!r.ok) throw new Error('Falha ao inserir nova vers\u00e3o em tabela_frete (HTTP '+r.status+'). Dados antigos preservados.');
+    // Sucesso no insert — agora é seguro remover os registros antigos (todos exceto o mais recente)
+    return sbFetch('tabela_frete?select=id&order=created_at.desc');
   })
-  .then(function(r){
-    if(!r.ok) throw new Error('Falha ao inserir em tabela_frete (HTTP '+r.status+')');
+  .then(function(r){ return r.json(); })
+  .then(function(rows){
+    if(Array.isArray(rows) && rows.length > 1){
+      // Manter só o primeiro (mais recente), remover os demais
+      var idsParaRemover = rows.slice(1).map(function(r){ return r.id; });
+      var filtro = idsParaRemover.map(function(id){ return '"'+id+'"'; }).join(',');
+      var delHeaders = Object.assign({}, sbHeaders(), {'Prefer':'return=minimal'});
+      return sbFetch('tabela_frete?id=in.('+filtro+')', {method:'DELETE', headers:delHeaders});
+    }
+  })
+  .then(function(){
     var badge=document.getElementById('autosave-badge');
     var hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     badge.textContent='\u2713 Tabela de frete sincronizada \u00e0s '+hora;
@@ -2959,7 +2982,7 @@ function salvarFreteSupabase(){
   .catch(function(e){
     console.error('Erro salvar frete:', e);
     var b=document.getElementById('autosave-badge');
-    b.textContent='\u26A0 Erro ao salvar frete na nuvem (ver console)';
+    b.textContent='\u26A0 Erro ao salvar frete na nuvem — dados mantidos localmente';
     b.style.background='#fee2e2'; b.style.color='#991b1b'; b.style.borderColor='#fca5a5';
     b.style.display='';
   });
@@ -2982,8 +3005,20 @@ function carregarFreteSupabase(){
       aplicarFreteData(parsed);
       try{ localStorage.setItem('frete_data', JSON.stringify(FRETE)); }catch(e){}
     } else {
-      // Banco vazio: subir os dados padrão do HTML para o Supabase
-      salvarFreteSupabase();
+      // Banco realmente vazio (nunca foi inicializado). NÃO subir dados automaticamente —
+      // isso evita sobrescrever dados de outro dispositivo em caso de falha temporária.
+      // Usar cache local se existir; senão mantém os dados embutidos no HTML como ponto de partida.
+      console.warn('tabela_frete retornou vazio. Verificando cache local antes de decidir.');
+      var cached = localStorage.getItem('frete_data');
+      if(cached){
+        try{ aplicarFreteData(JSON.parse(cached)); }catch(e){}
+      }
+      var badge=document.getElementById('autosave-badge');
+      if(badge){
+        badge.textContent='\u26A0 Tabela de frete vazia na nuvem — confirme antes de cadastrar';
+        badge.style.background='#fef3c7'; badge.style.color='#92400e'; badge.style.borderColor='#fde68a';
+        badge.style.display='';
+      }
     }
   })
   .catch(function(e){
@@ -3002,7 +3037,7 @@ function aplicarFreteData(novo){
 
 // ── ANTI-CACHE: forçar reload se a página estiver em cache antigo ──
 (function(){
-  var BUILD_TS = '20260630133037';
+  var BUILD_TS = '20260630134715';
   var lastSeen = localStorage.getItem('app_build_ts');
   if(lastSeen && lastSeen !== BUILD_TS){
     // Nova versão detectada — limpar cache de visualização e recarregar uma vez
