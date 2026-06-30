@@ -166,7 +166,15 @@ input[type=date]:focus{border-color:#1c1917}
 .perfil-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-left:8px}
 .perfil-adm{background:#fef3c7;color:#92400e}
 .perfil-cons{background:#dbeafe;color:#1d4ed8}
-/* MODO CONSULTA - ocultar controles de edição */
+/* COLETAS */
+.col-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f5f5f4}
+.col-row:last-child{border-bottom:none}
+.col-tipo{font-size:13px;font-weight:500;color:#1c1917}
+.col-val{font-size:13px;font-weight:700;color:#1c1917}
+.col-val.spot{color:#78716c;font-weight:500;font-style:italic}
+.col-inp-wrap{display:flex;align-items:center;border:1px solid #d6d3d1;border-radius:8px;overflow:hidden;background:#fff}
+.col-rs{padding:0 8px;font-size:13px;font-weight:600;color:#78716c;background:#fafaf9;border-right:1px solid #d6d3d1;height:34px;display:flex;align-items:center}
+.col-inp{height:34px;padding:0 10px;border:none;font-size:13px;color:#1c1917;outline:none;width:90px;background:#fff}
 body.modo-consulta .btn-del{display:none!important}
 body.modo-consulta .vei-ok{display:none!important}
 body.modo-consulta .vei-inp{pointer-events:none;background:#fafaf9;border-color:transparent}
@@ -497,8 +505,12 @@ body.modo-consulta .mtab{pointer-events:none}
 
   <!-- Barra de ações -->
   <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
-    <input type="text" id="frete-busca" placeholder="Buscar cidade..." oninput="filtrarFrete()" style="width:200px">
+    <input type="text" id="frete-busca" placeholder="&#x1F50D; Buscar destino..." oninput="filtrarFrete()" style="width:220px">
     <button class="btn btn-dark" onclick="abrirModalRota(null)" id="btn-nova-rota">&#x2795; Nova rota</button>
+    <button class="btn btn-ghost" onclick="imprimirFrete()" style="gap:6px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Imprimir tabela
+    </button>
     <div style="flex:1"></div>
     <span style="font-size:12px;color:#78716c" id="frete-count"></span>
   </div>
@@ -508,8 +520,8 @@ body.modo-consulta .mtab{pointer-events:none}
     <div class="table-wrap">
       <table id="frete-table">
         <thead><tr>
-          <th onclick="sortFrete('cidade')" id="fth-cidade">Rota</th>
-          <th onclick="sortFrete('km')" id="fth-km" style="text-align:right">KM</th>
+          <th onclick="sortFrete('cidade')" id="fth-cidade" style="min-width:180px;max-width:320px">Rota</th>
+          <th onclick="sortFrete('km')" id="fth-km" style="text-align:right;width:60px">KM</th>
           <th onclick="sortFrete('pickup')" id="fth-pickup" style="text-align:right">Pick-up</th>
           <th onclick="sortFrete('truck')" id="fth-truck" style="text-align:right">Truck</th>
           <th onclick="sortFrete('carreta')" id="fth-carreta" style="text-align:right">Carreta</th>
@@ -521,43 +533,56 @@ body.modo-consulta .mtab{pointer-events:none}
     </div>
   </div>
 
-  <!-- Coletas adicionais -->
-  <div class="panel" style="padding:20px;margin-top:16px">
-    <div style="font-size:14px;font-weight:600;margin-bottom:14px">&#x1F4CD; Coletas Adicionais</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+  <!-- Coletas adicionais — visual profissional -->
+  <div class="panel" style="padding:22px;margin-top:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div>
-        <div style="font-size:12px;font-weight:600;color:#78716c;text-transform:uppercase;margin-bottom:10px">Fora de Piracicaba</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:13px;min-width:80px">Pick-up:</span>
-            <input id="col-fora-pickup" type="text" style="width:100px;height:32px;padding:0 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px" oninput="salvarColetas()">
+        <div style="font-size:14px;font-weight:600;color:#1c1917">&#x1F4CD; Coletas Adicionais</div>
+        <div style="font-size:12px;color:#78716c;margin-top:2px">Valores negociados por tipo de ve&#xED;culo</div>
+      </div>
+      <button class="btn btn-ghost" id="btn-edit-coletas" onclick="toggleEditColetas()" style="font-size:12px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Editar
+      </button>
+    </div>
+
+    <!-- Visualização (modo leitura) -->
+    <div id="coletas-view">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div style="border:1px solid #e7e5e4;border-radius:10px;overflow:hidden">
+          <div style="background:#f5f5f4;padding:10px 16px;font-size:11px;font-weight:700;color:#78716c;text-transform:uppercase;letter-spacing:.05em">Fora de Piracicaba</div>
+          <div style="padding:4px 0" id="view-fora"></div>
+        </div>
+        <div style="border:1px solid #e7e5e4;border-radius:10px;overflow:hidden">
+          <div style="background:#f5f5f4;padding:10px 16px;font-size:11px;font-weight:700;color:#78716c;text-transform:uppercase;letter-spacing:.05em">Em Piracicaba</div>
+          <div style="padding:4px 0" id="view-pira"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edição (modo edição) -->
+    <div id="coletas-edit" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px">
+        <div style="border:1px solid #e7e5e4;border-radius:10px;overflow:hidden">
+          <div style="background:#fef3c7;padding:10px 16px;font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.05em">Fora de Piracicaba</div>
+          <div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+            <div class="col-row"><span class="col-tipo">Pick-up</span><div class="col-inp-wrap"><span class="col-rs">R$</span><input id="col-fora-pickup" type="text" class="col-inp" placeholder="0,00"></div></div>
+            <div class="col-row"><span class="col-tipo">Truck</span><div class="col-inp-wrap"><span class="col-rs">R$</span><input id="col-fora-truck" type="text" class="col-inp" placeholder="Spot"></div></div>
+            <div class="col-row"><span class="col-tipo">Carreta</span><div class="col-inp-wrap"><span class="col-rs">R$</span><input id="col-fora-carreta" type="text" class="col-inp" placeholder="Spot"></div></div>
           </div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:13px;min-width:80px">Truck:</span>
-            <input id="col-fora-truck" type="text" style="width:100px;height:32px;padding:0 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px" oninput="salvarColetas()">
-          </div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:13px;min-width:80px">Carreta:</span>
-            <input id="col-fora-carreta" type="text" style="width:100px;height:32px;padding:0 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px" oninput="salvarColetas()">
+        </div>
+        <div style="border:1px solid #e7e5e4;border-radius:10px;overflow:hidden">
+          <div style="background:#fef3c7;padding:10px 16px;font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.05em">Em Piracicaba</div>
+          <div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+            <div class="col-row"><span class="col-tipo">Pick-up</span><div class="col-inp-wrap"><span class="col-rs">R$</span><input id="col-pira-pickup" type="text" class="col-inp" placeholder="0,00"></div></div>
+            <div class="col-row"><span class="col-tipo">Truck</span><div class="col-inp-wrap"><span class="col-rs">R$</span><input id="col-pira-truck" type="text" class="col-inp" placeholder="Spot"></div></div>
+            <div class="col-row"><span class="col-tipo">Carreta</span><div class="col-inp-wrap"><span class="col-rs">R$</span><input id="col-pira-carreta" type="text" class="col-inp" placeholder="Spot"></div></div>
           </div>
         </div>
       </div>
-      <div>
-        <div style="font-size:12px;font-weight:600;color:#78716c;text-transform:uppercase;margin-bottom:10px">Em Piracicaba</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:13px;min-width:80px">Pick-up:</span>
-            <input id="col-pira-pickup" type="text" style="width:100px;height:32px;padding:0 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px" oninput="salvarColetas()">
-          </div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:13px;min-width:80px">Truck:</span>
-            <input id="col-pira-truck" type="text" style="width:100px;height:32px;padding:0 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px" oninput="salvarColetas()">
-          </div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:13px;min-width:80px">Carreta:</span>
-            <input id="col-pira-carreta" type="text" style="width:100px;height:32px;padding:0 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px" oninput="salvarColetas()">
-          </div>
-        </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="cancelarEditColetas()">Cancelar</button>
+        <button class="btn btn-dark" onclick="confirmarEditColetas()">&#x2713; Salvar coletas</button>
       </div>
     </div>
   </div>
@@ -573,25 +598,29 @@ body.modo-consulta .mtab{pointer-events:none}
     </div>
     <div class="modal-body" style="padding:20px 24px">
       <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:14px">
-        <div class="fg2" style="grid-column:1/-1">
+        <div class="fg2">
+          <label class="flbl">Origem *</label>
+          <input type="text" id="rota-origem" placeholder="Ex: Piracicaba">
+        </div>
+        <div class="fg2">
           <label class="flbl">Destino *</label>
           <input type="text" id="rota-cidade" placeholder="Ex: Campinas">
         </div>
-        <div class="fg2">
+        <div class="fg2" style="grid-column:1/-1">
           <label class="flbl">KM</label>
           <input type="number" id="rota-km" placeholder="Ex: 71" min="0">
         </div>
         <div class="fg2">
           <label class="flbl">Pick-up (R$) *</label>
-          <input type="text" id="rota-pickup" placeholder="Ex: 437,66">
+          <input type="text" id="rota-pickup" class="frete-money" placeholder="R$ 0,00" inputmode="decimal">
         </div>
         <div class="fg2">
           <label class="flbl">Truck (R$) *</label>
-          <input type="text" id="rota-truck" placeholder="Ex: 999,37 ou Spot">
+          <input type="text" id="rota-truck" class="frete-money" placeholder="R$ 0,00 ou Spot" inputmode="decimal">
         </div>
-        <div class="fg2">
+        <div class="fg2" style="grid-column:1/-1">
           <label class="flbl">Carreta (R$) *</label>
-          <input type="text" id="rota-carreta" placeholder="Ex: 1251,12 ou Spot">
+          <input type="text" id="rota-carreta" class="frete-money" placeholder="R$ 0,00 ou Spot" inputmode="decimal">
         </div>
       </div>
       <div class="smsg" id="msg-rota" style="margin-top:12px"></div>
@@ -2267,9 +2296,8 @@ function carregarDados(){
         // Se banco vazio, usar dados do HTML (primeira vez)
         if(cons_data.length === 0){
           setBadge('\u2139 Banco vazio \u2014 carregando dados iniciais...', true);
-          // Sincronizar dados do HTML para o Supabase
           setTimeout(sincronizarSupabase, 500);
-          return false;
+          return carregarFreteSupabase().then(function(){ return false; });
         }
 
         // Substituir CONS com dados do Supabase
@@ -2317,6 +2345,8 @@ function carregarDados(){
   .catch(function(e){
     console.error('Erro ao carregar:', e);
     setBadge('\u26A0 Erro na nuvem \u2014 usando cache local', false);
+    var cachedFrete = localStorage.getItem('frete_data');
+    if(cachedFrete){ try{ aplicarFreteData(JSON.parse(cachedFrete)); }catch(e2){} }
     return restaurarDoLocalStorage();
   });
 }
@@ -2525,31 +2555,71 @@ var _freteSort = {k:'cidade', d:1};
 var _rotaEditIdx = null;
 
 function initFrete(){
-  // Preencher coletas
-  var c = FRETE.coletas || {};
-  document.getElementById('col-fora-pickup').value = c.fora_pickup || '';
-  document.getElementById('col-fora-truck').value  = c.fora_truck  || '';
-  document.getElementById('col-fora-carreta').value= c.fora_carreta|| '';
-  document.getElementById('col-pira-pickup').value = c.pira_pickup || '';
-  document.getElementById('col-pira-truck').value  = c.pira_truck  || '';
-  document.getElementById('col-pira-carreta').value= c.pira_carreta|| '';
+  renderColetasView();
   filtrarFrete();
   renderCardsF();
-  // Ocultar botão nova rota no modo consulta
-  if(document.body.classList.contains('modo-consulta')){
-    var b=document.getElementById('btn-nova-rota'); if(b)b.style.display='none';
-  }
+  // Modo consulta: ocultar botões de edição
+  var isADM=!document.body.classList.contains('modo-consulta');
+  var btnNova=document.getElementById('btn-nova-rota');
+  var btnEdit=document.getElementById('btn-edit-coletas');
+  if(btnNova) btnNova.style.display=isADM?'':'none';
+  if(btnEdit) btnEdit.style.display=isADM?'':'none';
 }
 
 function renderCardsF(){
   var rotas = FRETE.rotas||[];
-  var maxP = Math.max.apply(null, rotas.map(function(r){return typeof r.pickup==='number'?r.pickup:0;}));
-  var minP = Math.min.apply(null, rotas.filter(function(r){return typeof r.pickup==='number';} ).map(function(r){return r.pickup;}));
+  var c = FRETE.coletas||{};
+
+  function coletaCardVal(val, fieldId){
+    var isSpot = typeof val==='string' && val.toLowerCase()==='spot';
+    var display = isSpot ? 'Spot' : (val ? fR(parseFloat(String(val).replace(',','.'))||0) : 'R$ 0,00');
+    return '<span id="cardval-'+fieldId+'">'+display+'</span>';
+  }
+
   document.getElementById('cards-frete').innerHTML =
-    '<div class="card"><div class="card-lbl">Total de rotas</div><div class="card-val">'+rotas.length+'</div><div class="card-sub">cidades atendidas</div></div>'
-    +'<div class="card ok"><div class="card-lbl">Menor tarifa Pick-up</div><div class="card-val" style="font-size:18px">'+fR(minP)+'</div><div class="card-sub">menor valor</div></div>'
-    +'<div class="card danger"><div class="card-lbl">Maior tarifa Pick-up</div><div class="card-val" style="font-size:18px">'+fR(maxP)+'</div><div class="card-sub">maior valor</div></div>'
-    +'<div class="card accent"><div class="card-lbl">Coleta adicional Pira</div><div class="card-val" style="font-size:18px">'+fR(FRETE.coletas.pira_pickup||0)+'</div><div class="card-sub">Pick-up</div></div>';
+    '<div class="card"><div class="card-lbl">Total de rotas cadastradas</div><div class="card-val">'+rotas.length+'</div><div class="card-sub">destinos atendidos</div></div>'
+
+    +'<div class="card accent" style="position:relative">'
+    +'<div class="card-lbl">Coleta adicional fora de Piracicaba</div>'
+    +'<div class="card-val" style="font-size:18px;display:flex;align-items:center;gap:8px">'
+    +coletaCardVal(c.fora_pickup,'fora')
+    +'<button class="vei-ok" onclick="editarCardColeta(\'fora\')" title="Editar" style="font-size:10px;padding:2px 6px;height:auto">&#x270F;</button>'
+    +'</div><div class="card-sub">Pick-up &middot; valor negociado</div></div>'
+
+    +'<div class="card late" style="position:relative">'
+    +'<div class="card-lbl">Coleta adicional em Piracicaba</div>'
+    +'<div class="card-val" style="font-size:18px;display:flex;align-items:center;gap:8px">'
+    +coletaCardVal(c.pira_pickup,'pira')
+    +'<button class="vei-ok" onclick="editarCardColeta(\'pira\')" title="Editar" style="font-size:10px;padding:2px 6px;height:auto">&#x270F;</button>'
+    +'</div><div class="card-sub">Pick-up &middot; valor negociado</div></div>';
+
+  // Esconder lápis no modo consulta
+  if(document.body.classList.contains('modo-consulta')){
+    document.getElementById('cards-frete').querySelectorAll('.vei-ok').forEach(function(b){b.style.display='none';});
+  }
+}
+
+function editarCardColeta(grupo){
+  var span = document.getElementById('cardval-'+grupo);
+  var atual = (FRETE.coletas||{})[grupo+'_pickup'] || '';
+  var atualFmt = typeof atual==='number' ? 'R$ '+atual.toFixed(2).replace('.',',') : atual;
+  span.outerHTML = '<input id="cardedit-'+grupo+'" type="text" class="frete-money" value="'+atualFmt+'" '
+    +'style="height:28px;padding:0 8px;border:1px solid #2563eb;border-radius:6px;font-size:14px;font-weight:700;width:110px;outline:none" '
+    +'onkeydown="if(event.key===\'Enter\')confirmarCardColeta(\''+grupo+'\')">'
+    +'<button class="vei-ok" onclick="confirmarCardColeta(\''+grupo+'\')" style="margin-left:6px">&#10003;</button>';
+  var inp = document.getElementById('cardedit-'+grupo);
+  aplicarMascaraMoeda(inp);
+  inp.focus(); inp.select();
+}
+
+function confirmarCardColeta(grupo){
+  var inp = document.getElementById('cardedit-'+grupo);
+  var val = parseValFrete(inp.value);
+  if(!FRETE.coletas) FRETE.coletas={};
+  FRETE.coletas[grupo+'_pickup'] = val===null ? '' : val;
+  salvarFreteSupabase();
+  renderCardsF();
+  renderColetasView();
 }
 
 function filtrarFrete(){
@@ -2602,7 +2672,7 @@ function renderFrete(){
           +'</td>'
         : '<td></td>';
       return '<tr>'
-        +'<td style="font-weight:600">'+(r.rota||r.cidade)+'</td>'
+        +'<td style="font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(r.rota||r.cidade)+'">'+(r.rota||r.cidade)+'</td>'
         +'<td style="text-align:right">'+(r.km||'—')+'</td>'
         +'<td style="text-align:right;color:#16a34a;font-weight:500">'+fV(r.pickup)+'</td>'
         +'<td style="text-align:right">'+fV(r.truck)+'</td>'
@@ -2618,17 +2688,54 @@ function abrirModalRota(idx){
   _rotaEditIdx = idx;
   var r = idx!==null ? FRETE.rotas[idx] : null;
   document.getElementById('modal-rota-title').textContent = r ? 'Editar rota' : 'Nova rota';
-  var destino = r ? (r.rota ? r.rota.split('\u21c4').pop().trim().replace(/\s*-\s*SP\s*$/,'').trim() : r.cidade) : '';
-  document.getElementById('rota-cidade').value = destino;
-  document.getElementById('rota-km').value      = r ? (r.km||'') : '';
-  document.getElementById('rota-pickup').value  = r ? (typeof r.pickup==='number'?r.pickup.toFixed(2).replace('.',','):r.pickup) : '';
-  document.getElementById('rota-truck').value   = r ? (typeof r.truck==='number'?r.truck.toFixed(2).replace('.',','):r.truck) : '';
-  document.getElementById('rota-carreta').value = r ? (typeof r.carreta==='number'?r.carreta.toFixed(2).replace('.',','):r.carreta) : '';
+
+  var origem = 'Piracicaba', destino = r ? r.cidade : '';
+  if(r && r.rota && r.rota.indexOf('\u21c4')>=0){
+    var partes = r.rota.split('\u21c4');
+    origem  = partes[0].trim().replace(/\s*-\s*SP\s*$/,'').trim();
+    destino = partes[1].trim().replace(/\s*-\s*SP\s*(\(.*\))?\s*$/,'').trim();
+  }
+
+  document.getElementById('rota-origem').value  = origem;
+  document.getElementById('rota-cidade').value   = destino;
+  document.getElementById('rota-km').value       = r ? (r.km||'') : '';
+  document.getElementById('rota-pickup').value   = r ? formatMoneyInput(r.pickup)  : '';
+  document.getElementById('rota-truck').value    = r ? formatMoneyInput(r.truck)   : '';
+  document.getElementById('rota-carreta').value  = r ? formatMoneyInput(r.carreta) : '';
   document.getElementById('msg-rota').style.display='none';
   document.getElementById('modal-rota-bg').style.display='flex';
   document.body.style.overflow='hidden';
-  setTimeout(function(){document.getElementById('rota-cidade').focus();},100);
+  setTimeout(function(){document.getElementById('rota-origem').focus();},100);
 }
+
+function formatMoneyInput(v){
+  if(typeof v==='number') return 'R$ '+v.toFixed(2).replace('.',',');
+  if(typeof v==='string' && v.toLowerCase()==='spot') return 'Spot';
+  return v||'';
+}
+
+// Máscara de moeda nos campos .frete-money — digita só números, formata como R$ 0,00
+function aplicarMascaraMoeda(input){
+  input.addEventListener('input', function(){
+    var v = input.value;
+    // Permitir "Spot" sem máscara
+    if(/^[a-zA-Z]/.test(v.replace('R$','').trim())){ return; }
+    var digits = v.replace(/\D/g,'');
+    if(!digits){ input.value=''; return; }
+    var num = (parseInt(digits,10)/100).toFixed(2);
+    input.value = 'R$ ' + num.replace('.', ',').replace(/(\d)(?=(\d{3})+,)/g, '$1.');
+  });
+  input.addEventListener('focus', function(){
+    if(input.value.toLowerCase()==='spot'){ input.select(); }
+  });
+}
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.frete-money').forEach(aplicarMascaraMoeda);
+});
+// Como o modal já existe no DOM (display:none), aplicar direto também:
+setTimeout(function(){
+  document.querySelectorAll('.frete-money').forEach(aplicarMascaraMoeda);
+}, 0);
 
 function fecharModalRota(){
   document.getElementById('modal-rota-bg').style.display='none';
@@ -2639,11 +2746,15 @@ function parseValFrete(s){
   if(!s) return null;
   s=s.trim();
   if(s.toLowerCase()==='spot') return 'Spot';
-  var n=parseFloat(s.replace('.','').replace(',','.'));
-  return isNaN(n)?s:n;
+  var digits = s.replace('R$','').trim();
+  if(!digits) return null;
+  if(/^[a-zA-Z]/.test(digits)) return digits; // texto livre tipo "A negociar"
+  var n=parseFloat(digits.replace(/\./g,'').replace(',','.'));
+  return isNaN(n)?null:n;
 }
 
 function salvarRota(){
+  var origem=document.getElementById('rota-origem').value.trim()||'Piracicaba';
   var cidade=document.getElementById('rota-cidade').value.trim();
   var km=parseInt(document.getElementById('rota-km').value)||0;
   var pickup=parseValFrete(document.getElementById('rota-pickup').value);
@@ -2651,9 +2762,10 @@ function salvarRota(){
   var carreta=parseValFrete(document.getElementById('rota-carreta').value);
   var msg=document.getElementById('msg-rota');
   if(!cidade||pickup===null||truck===null||carreta===null){
-    msg.className='smsg msg-err'; msg.textContent='Preencha cidade e todas as tarifas.'; msg.style.display='block'; return;
+    msg.className='smsg msg-err'; msg.textContent='Preencha origem, destino e todas as tarifas corretamente.'; msg.style.display='block'; return;
   }
-  var rota={cidade:cidade,km:km,pickup:pickup,truck:truck,carreta:carreta};
+  var rotaLabel = origem+' - SP \u21c4 '+cidade+' - SP';
+  var rota={cidade:cidade,rota:rotaLabel,km:km,pickup:pickup,truck:truck,carreta:carreta};
   if(_rotaEditIdx!==null){
     FRETE.rotas[_rotaEditIdx]=rota;
   }else{
@@ -2667,10 +2779,54 @@ function salvarRota(){
 
 function excluirRota(idx){
   var r=FRETE.rotas[idx];
-  if(!confirm('Excluir rota para '+r.cidade+'?\nEsta ação não pode ser desfeita.')) return;
+  if(!confirm('Excluir rota '+(r.rota||r.cidade)+'?\nEsta a\u00e7\u00e3o n\u00e3o pode ser desfeita.')) return;
   FRETE.rotas.splice(idx,1);
   filtrarFrete(); renderCardsF();
   salvarFreteSupabase();
+}
+
+function renderColetasView(){
+  var c = FRETE.coletas || {};
+  function rowView(tipo, val){
+    var isSpot = typeof val==='string' && val.toLowerCase()==='spot';
+    var display = isSpot ? 'Spot (negociado)' : (typeof val==='number' ? fR(val) : (val||'—'));
+    var cls = isSpot ? 'col-val spot' : 'col-val';
+    return '<div class="col-row"><span class="col-tipo">'+tipo+'</span><span class="'+cls+'">'+display+'</span></div>';
+  }
+  document.getElementById('view-fora').innerHTML =
+    rowView('Pick-up', isNaN(parseFloat(c.fora_pickup)) ? c.fora_pickup : parseFloat(c.fora_pickup))+
+    rowView('Truck',   c.fora_truck)+
+    rowView('Carreta', c.fora_carreta);
+  document.getElementById('view-pira').innerHTML =
+    rowView('Pick-up', isNaN(parseFloat(c.pira_pickup)) ? c.pira_pickup : parseFloat(c.pira_pickup))+
+    rowView('Truck',   c.pira_truck)+
+    rowView('Carreta', c.pira_carreta);
+}
+
+function toggleEditColetas(){
+  var isADM=!document.body.classList.contains('modo-consulta');
+  if(!isADM) return;
+  var c=FRETE.coletas||{};
+  document.getElementById('col-fora-pickup').value = c.fora_pickup||'';
+  document.getElementById('col-fora-truck').value  = c.fora_truck||'';
+  document.getElementById('col-fora-carreta').value= c.fora_carreta||'';
+  document.getElementById('col-pira-pickup').value = c.pira_pickup||'';
+  document.getElementById('col-pira-truck').value  = c.pira_truck||'';
+  document.getElementById('col-pira-carreta').value= c.pira_carreta||'';
+  document.getElementById('coletas-view').style.display='none';
+  document.getElementById('coletas-edit').style.display='';
+  document.getElementById('btn-edit-coletas').style.display='none';
+}
+
+function cancelarEditColetas(){
+  document.getElementById('coletas-view').style.display='';
+  document.getElementById('coletas-edit').style.display='none';
+  document.getElementById('btn-edit-coletas').style.display='';
+}
+
+function confirmarEditColetas(){
+  salvarColetas();
+  cancelarEditColetas();
 }
 
 function salvarColetas(){
@@ -2682,44 +2838,153 @@ function salvarColetas(){
     pira_truck:  document.getElementById('col-pira-truck').value,
     pira_carreta:document.getElementById('col-pira-carreta').value,
   };
+  renderColetasView();
   salvarFreteSupabase();
 }
 
+function imprimirFrete(){
+  var rotas = _freteFiltrado.length ? _freteFiltrado : (FRETE.rotas||[]);
+  var c = FRETE.coletas||{};
+  var gerado = new Date().toLocaleDateString('pt-BR')+' \u00e0s '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+  function fVal(v){ if(typeof v==='string') return v; if(typeof v==='number') return fR(v); return '\u2014'; }
+
+  var rows = rotas.map(function(r){
+    return '<tr>'
+      +'<td style="padding:6px 10px;font-size:11px">'+(r.rota||r.cidade)+'</td>'
+      +'<td style="padding:6px 10px;text-align:center;font-size:11px">'+(r.km||'\u2014')+'</td>'
+      +'<td style="padding:6px 10px;text-align:right;font-size:11px;color:#16a34a;font-weight:600">'+fVal(r.pickup)+'</td>'
+      +'<td style="padding:6px 10px;text-align:right;font-size:11px">'+fVal(r.truck)+'</td>'
+      +'<td style="padding:6px 10px;text-align:right;font-size:11px">'+fVal(r.carreta)+'</td>'
+      +'</tr>';
+  }).join('');
+
+  function colRow(tipo,val){
+    var isSpot=typeof val==='string'&&val.toLowerCase()==='spot';
+    var display=isSpot?'Spot (negociado)':(typeof val==='number'?fR(val):(val||'\u2014'));
+    return '<tr><td style="padding:5px 10px;font-size:11px">'+tipo+'</td>'
+      +'<td style="padding:5px 10px;text-align:right;font-size:11px;font-weight:600">'+display+'</td></tr>';
+  }
+
+  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
+    +'<title>Tabela de Frete 2026 \u2014 Novatrans</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:12px;color:#1c1917;padding:24px}'
+    +'@media print{body{padding:0}@page{margin:12mm}}'
+    +'table{width:100%;border-collapse:collapse}'
+    +'thead th{background:#1c1917;color:#fff;padding:8px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}'
+    +'tbody tr:nth-child(even){background:#fafaf9}'
+    +'tbody tr:hover{background:#f0f0ef}'
+    +'td{border-bottom:1px solid #f0f0ef}'
+    +'</style></head><body>'
+
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #1c1917">'
+    +'<div>'
+    +'<div style="font-size:22px;font-weight:700;color:#1c1917">Tabela de Frete 2026</div>'
+    +'<div style="font-size:13px;color:#78716c;margin-top:3px">Novatrans Log\u00edstica \u2014 Piracicaba / SP</div>'
+    +'</div>'
+    +'<div style="text-align:right">'
+    +'<div style="font-size:11px;color:#78716c">Gerado em</div>'
+    +'<div style="font-size:12px;font-weight:600">'+gerado+'</div>'
+    +'<div style="font-size:11px;color:#78716c;margin-top:2px">'+rotas.length+' rotas</div>'
+    +'</div></div>'
+
+    +'<table style="margin-bottom:24px">'
+    +'<thead><tr>'
+    +'<th style="min-width:200px">Rota</th>'
+    +'<th style="text-align:center;width:50px">KM</th>'
+    +'<th style="text-align:right">Pick-up</th>'
+    +'<th style="text-align:right">Truck</th>'
+    +'<th style="text-align:right">Carreta</th>'
+    +'</tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'</table>'
+
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
+
+    +'<div><div style="font-size:12px;font-weight:700;color:#1c1917;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid #1c1917">&#x1F4CD; Coletas Adicionais \u2014 Fora de Piracicaba</div>'
+    +'<table>'+colRow('Pick-up',c.fora_pickup)+colRow('Truck',c.fora_truck)+colRow('Carreta',c.fora_carreta)+'</table></div>'
+
+    +'<div><div style="font-size:12px;font-weight:700;color:#1c1917;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid #1c1917">&#x1F4CD; Coletas Adicionais \u2014 Em Piracicaba</div>'
+    +'<table>'+colRow('Pick-up',c.pira_pickup)+colRow('Truck',c.pira_truck)+colRow('Carreta',c.pira_carreta)+'</table></div>'
+
+    +'</div>'
+    +'<div style="margin-top:20px;padding-top:10px;border-top:1px solid #e7e5e4;font-size:10px;color:#a8a29e;display:flex;justify-content:space-between">'
+    +'<span>Novatrans Log\u00edstica \u2014 Tabela de Frete 2026</span><span>'+gerado+'</span></div>'
+    +'</body></html>';
+
+  var w=window.open('','_blank');
+  if(!w){alert('Pop-up bloqueado. Permita pop-ups para este site.');return;}
+  w.document.write(html);
+  w.document.close();
+  w.onload=function(){w.print();};
+}
+
 function salvarFreteSupabase(){
-  // Salvar no localStorage como cache imediato
   try{ localStorage.setItem('frete_data', JSON.stringify(FRETE)); }catch(e){}
-  // Salvar no Supabase
-  if(!_sbOnline) return;
-  sbFetch('tabela_frete?id=neq.00000000-0000-0000-0000-000000000000',{method:'DELETE',headers:Object.assign({},sbHeaders(),{'Prefer':'return=minimal'})})
-  .then(function(){
-    return sbFetch('tabela_frete',{method:'POST',body:JSON.stringify([{dados:JSON.stringify(FRETE)}])});
+  if(!_sbOnline){
+    var b=document.getElementById('autosave-badge');
+    b.textContent='\u26A0 Frete salvo apenas localmente (sem conex\u00e3o)';
+    b.style.background='#fef3c7'; b.style.color='#92400e'; b.style.borderColor='#fde68a';
+    b.style.display='';
+    return;
+  }
+  var delHeaders = Object.assign({}, sbHeaders(), {'Prefer':'return=minimal'});
+  sbFetch('tabela_frete?id=neq.00000000-0000-0000-0000-000000000000',{method:'DELETE', headers:delHeaders})
+  .then(function(r){
+    if(!r.ok) throw new Error('Falha ao limpar tabela_frete (HTTP '+r.status+'). Verifique se a tabela existe no Supabase.');
+    return sbFetch('tabela_frete',{method:'POST', body:JSON.stringify([{dados:JSON.stringify(FRETE)}])});
   })
-  .then(function(){
+  .then(function(r){
+    if(!r.ok) throw new Error('Falha ao inserir em tabela_frete (HTTP '+r.status+')');
     var badge=document.getElementById('autosave-badge');
-    badge.textContent='\u2713 Tabela de frete salva';
+    var hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    badge.textContent='\u2713 Tabela de frete sincronizada \u00e0s '+hora;
+    badge.style.background='#dcfce7'; badge.style.color='#15803d'; badge.style.borderColor='#bbf7d0';
     badge.style.display='';
   })
-  .catch(function(e){console.error('Erro salvar frete:',e);});
+  .catch(function(e){
+    console.error('Erro salvar frete:', e);
+    var b=document.getElementById('autosave-badge');
+    b.textContent='\u26A0 Erro ao salvar frete na nuvem (ver console)';
+    b.style.background='#fee2e2'; b.style.color='#991b1b'; b.style.borderColor='#fca5a5';
+    b.style.display='';
+  });
 }
 
 function carregarFreteSupabase(){
-  // Tentar carregar do Supabase
   if(!_sbOnline){
     var cached=localStorage.getItem('frete_data');
-    if(cached){ try{FRETE=JSON.parse(cached);}catch(e){} }
+    if(cached){ try{ aplicarFreteData(JSON.parse(cached)); }catch(e){} }
     return Promise.resolve();
   }
-  return sbFetch('tabela_frete?select=dados&limit=1')
-  .then(function(r){return r.json();})
+  return sbFetch('tabela_frete?select=dados&order=created_at.desc&limit=1')
+  .then(function(r){
+    if(!r.ok) throw new Error('Tabela frete indispon\u00edvel (HTTP '+r.status+')');
+    return r.json();
+  })
   .then(function(rows){
     if(Array.isArray(rows)&&rows.length>0&&rows[0].dados){
-      try{FRETE=JSON.parse(rows[0].dados);}catch(e){}
+      var parsed = JSON.parse(rows[0].dados);
+      aplicarFreteData(parsed);
+      try{ localStorage.setItem('frete_data', JSON.stringify(FRETE)); }catch(e){}
+    } else {
+      // Banco vazio: subir os dados padrão do HTML para o Supabase
+      salvarFreteSupabase();
     }
   })
-  .catch(function(){
+  .catch(function(e){
+    console.warn('Erro ao carregar frete da nuvem, usando cache:', e);
     var cached=localStorage.getItem('frete_data');
-    if(cached){try{FRETE=JSON.parse(cached);}catch(e){}}
+    if(cached){ try{ aplicarFreteData(JSON.parse(cached)); }catch(e2){} }
   });
+}
+
+// Aplica dados de frete MUTANDO o objeto existente (preserva referência usada em todo o código)
+function aplicarFreteData(novo){
+  if(!novo) return;
+  FRETE.rotas = novo.rotas || [];
+  FRETE.coletas = novo.coletas || {};
 }
 
 // ── INIT ──
