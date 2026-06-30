@@ -565,11 +565,22 @@ body.modo-consulta .mtab{pointer-events:none}
 
 <!-- ═══ TABELA DE FRETE (consulta + cadastro, isolada do restante do sistema) ═══ -->
 <div id="page-frete" class="page">
-  <div class="cards" id="cards-frete"></div>
+  <!-- Total de rotas + Coletas Adicionais, mesma linha de 3 colunas -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px" id="frete-resumo-grid">
+    <div class="cards" id="cards-frete" style="display:contents"></div>
+    <div id="coletas-painel" style="display:contents"></div>
+  </div>
 
   <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
     <input type="text" id="frete-busca" placeholder="&#x1F50D; Buscar origem ou destino..." oninput="filtrarFrete()" style="width:240px">
+    <select id="frete-veiculo-filtro" onchange="filtrarFrete()" style="height:34px;padding:0 10px;border:1px solid #d6d3d1;border-radius:8px;font-size:13px;color:#1c1917;background:#fff;outline:none">
+      <option value="">Todos os ve&#xED;culos</option>
+      <option value="pickup">Pick-up</option>
+      <option value="truck">Truck</option>
+      <option value="carreta">Carreta</option>
+    </select>
     <button class="btn btn-dark" onclick="abrirModalRota(null)" id="btn-nova-rota">&#x2795; Nova rota</button>
+    <button class="btn btn-ghost" onclick="imprimirRotasFrete()" id="btn-imprimir-frete">&#x1F5A8; Imprimir rotas</button>
     <div style="flex:1"></div>
     <span style="font-size:12px;color:#78716c" id="frete-count"></span>
   </div>
@@ -2527,6 +2538,9 @@ function initFrete(){
     filtrarFrete();
     renderCardsFrete();
   });
+  carregarColetas().then(function(){
+    renderColetasPainel();
+  });
   var isADM = !document.body.classList.contains('modo-consulta');
   var btnNova = document.getElementById('btn-nova-rota');
   if(btnNova) btnNova.style.display = isADM ? '' : 'none';
@@ -2568,9 +2582,12 @@ function renderCardsFrete(){
 
 function filtrarFrete(){
   var q = (document.getElementById('frete-busca').value||'').toLowerCase();
+  var veiculo = document.getElementById('frete-veiculo-filtro').value;
   _freteFiltrado = FRETE.filter(function(r){
     var texto = fmtRota(r).toLowerCase();
-    return !q || texto.indexOf(q)>=0;
+    var matchBusca = !q || texto.indexOf(q)>=0;
+    var matchVeiculo = !veiculo || (r[veiculo] !== null && r[veiculo] !== undefined);
+    return matchBusca && matchVeiculo;
   });
   sortFreteArr();
   renderFrete();
@@ -2601,6 +2618,11 @@ function renderFrete(){
   var tb=document.getElementById('tbody-frete');
   var em=document.getElementById('empty-frete');
   var isADM = !document.body.classList.contains('modo-consulta');
+  var veiculo = document.getElementById('frete-veiculo-filtro').value;
+  function destaque(col){
+    if(!veiculo) return col===  'pickup' ? 'color:#16a34a;font-weight:500' : '';
+    return col===veiculo ? 'color:#16a34a;font-weight:700;background:#f0fdf4' : 'color:#a8a29e';
+  }
   if(!_freteFiltrado.length){ tb.innerHTML=''; em.style.display=''; }
   else{
     em.style.display='none';
@@ -2612,9 +2634,9 @@ function renderFrete(){
       return '<tr>'
         +'<td style="font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+fmtRota(r)+'">'+fmtRota(r)+'</td>'
         +'<td style="text-align:right">'+(r.km||'\u2014')+'</td>'
-        +'<td style="text-align:right;color:#16a34a;font-weight:500">'+fR(r.pickup)+'</td>'
-        +'<td style="text-align:right">'+fR(r.truck)+'</td>'
-        +'<td style="text-align:right">'+fR(r.carreta)+'</td>'
+        +'<td style="text-align:right;'+destaque('pickup')+'">'+fR(r.pickup)+'</td>'
+        +'<td style="text-align:right;'+destaque('truck')+'">'+fR(r.truck)+'</td>'
+        +'<td style="text-align:right;'+destaque('carreta')+'">'+fR(r.carreta)+'</td>'
         +'<td style="text-align:center;white-space:nowrap">'+acoes+'</td>'
         +'</tr>';
     }).join('');
@@ -2760,6 +2782,194 @@ function excluirRota(id){
     console.error('Erro ao excluir rota:', e);
     alert('Erro ao excluir a rota no servidor. Tente novamente.');
   });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COLETAS ADICIONAIS — painel editável, totalmente isolado.
+// Não toca em CONS, PAG_OJI, nem em FRETE (tabela_frete). Usa sua
+// própria variável (COLETAS) e sua própria tabela no Supabase
+// (coletas_adicionais). Estratégia segura: UPDATE direto pelo
+// "grupo" (chave única), nunca apaga/recria a tabela inteira.
+// ═══════════════════════════════════════════════════════════════
+var COLETAS = {fora:null, piracicaba:null};
+var _coletaEditGrupo = null;
+
+function carregarColetas(){
+  if(!_sbOnline){
+    try{
+      var cached = localStorage.getItem('coletas_adicionais_cache');
+      if(cached) COLETAS = JSON.parse(cached);
+    }catch(e){}
+    return Promise.resolve();
+  }
+  return sbFetch('coletas_adicionais?select=*')
+  .then(function(r){
+    if(!r.ok) throw new Error('Falha ao buscar coletas_adicionais (HTTP '+r.status+')');
+    return r.json();
+  })
+  .then(function(rows){
+    rows.forEach(function(r){
+      COLETAS[r.grupo] = {pickup:r.pickup, truck:r.truck, carreta:r.carreta};
+    });
+    try{ localStorage.setItem('coletas_adicionais_cache', JSON.stringify(COLETAS)); }catch(e){}
+  })
+  .catch(function(e){
+    console.warn('Erro ao carregar coletas_adicionais, usando cache:', e);
+    try{
+      var cached = localStorage.getItem('coletas_adicionais_cache');
+      if(cached) COLETAS = JSON.parse(cached);
+    }catch(e2){}
+  });
+}
+
+function fmtColeta(v){
+  if(!v) return '\u2014';
+  var s = String(v).trim();
+  if(s.toLowerCase()==='spot') return 'Spot (negociado)';
+  var n = parseFloat(s.replace(',','.'));
+  return isNaN(n) ? s : fR(n);
+}
+
+function renderColetasPainel(){
+  var painel = document.getElementById('coletas-painel');
+  var isADM = !document.body.classList.contains('modo-consulta');
+
+  function card(grupo, titulo){
+    var d = COLETAS[grupo] || {pickup:null, truck:null, carreta:null};
+    var btnEdit = isADM
+      ? '<button class="vei-ok" onclick="editarColeta(\''+grupo+'\')" title="Editar" style="margin-left:8px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
+      : '';
+    return '<div class="card" id="coleta-card-'+grupo+'">'
+      +'<div class="card-lbl">'+titulo+btnEdit+'</div>'
+      +'<div id="coleta-view-'+grupo+'">'
+      +'<div style="font-size:13px;margin-top:8px"><strong>Pick-up:</strong> '+fmtColeta(d.pickup)+'</div>'
+      +'<div style="font-size:13px;margin-top:4px"><strong>Truck:</strong> '+fmtColeta(d.truck)+'</div>'
+      +'<div style="font-size:13px;margin-top:4px"><strong>Carreta:</strong> '+fmtColeta(d.carreta)+'</div>'
+      +'</div>'
+      +'</div>';
+  }
+
+  painel.innerHTML = card('fora','Coleta Adicional Fora de Piracicaba') + card('piracicaba','Coleta Adicional em Piracicaba');
+}
+
+function editarColeta(grupo){
+  _coletaEditGrupo = grupo;
+  var d = COLETAS[grupo] || {pickup:null, truck:null, carreta:null};
+  var view = document.getElementById('coleta-view-'+grupo);
+
+  function campo(label, id, valor){
+    return '<div style="margin-top:8px">'
+      +'<label style="font-size:11px;color:#78716c;display:block;margin-bottom:3px">'+label+' <span style="font-size:10px">(deixe "Spot" se n\u00e3o tiver valor fixo)</span></label>'
+      +'<input type="text" id="'+id+'" value="'+(valor||'')+'" placeholder="Ex: 135,00 ou Spot" '
+      +'style="height:32px;padding:0 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px;width:100%;outline:none">'
+      +'</div>';
+  }
+
+  view.innerHTML =
+    campo('Pick-up','coleta-edit-'+grupo+'-pickup', d.pickup)
+    + campo('Truck','coleta-edit-'+grupo+'-truck', d.truck)
+    + campo('Carreta','coleta-edit-'+grupo+'-carreta', d.carreta)
+    + '<div style="display:flex;gap:6px;margin-top:10px">'
+    + '<button class="btn btn-ghost" style="height:28px;padding:0 10px;font-size:12px" onclick="cancelarEdicaoColeta(\''+grupo+'\')">Cancelar</button>'
+    + '<button class="btn btn-dark" style="height:28px;padding:0 10px;font-size:12px" onclick="salvarColeta(\''+grupo+'\')">&#x2713; Salvar</button>'
+    + '</div>';
+}
+
+function cancelarEdicaoColeta(grupo){
+  renderColetasPainel();
+}
+
+function salvarColeta(grupo){
+  var pickup  = document.getElementById('coleta-edit-'+grupo+'-pickup').value.trim();
+  var truck   = document.getElementById('coleta-edit-'+grupo+'-truck').value.trim();
+  var carreta = document.getElementById('coleta-edit-'+grupo+'-carreta').value.trim();
+
+  var payload = {pickup:pickup||null, truck:truck||null, carreta:carreta||null};
+
+  sbFetch('coletas_adicionais?grupo=eq.'+grupo, {
+    method:'PATCH',
+    headers: Object.assign({}, sbHeaders(), {'Prefer':'return=representation'}),
+    body: JSON.stringify(payload)
+  })
+  .then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  })
+  .then(function(resultado){
+    var salvo = Array.isArray(resultado) ? resultado[0] : resultado;
+    COLETAS[grupo] = {pickup:salvo.pickup, truck:salvo.truck, carreta:salvo.carreta};
+    try{ localStorage.setItem('coletas_adicionais_cache', JSON.stringify(COLETAS)); }catch(e){}
+    renderColetasPainel();
+  })
+  .catch(function(e){
+    console.error('Erro ao salvar coleta adicional:', e);
+    alert('Erro ao salvar no servidor. Verifique sua conex\u00e3o e tente novamente.');
+  });
+}
+
+function imprimirRotasFrete(){
+  var veiculo = document.getElementById('frete-veiculo-filtro').value;
+  var veiculoLabel = veiculo === 'pickup' ? 'Pick-up' : veiculo === 'truck' ? 'Truck' : veiculo === 'carreta' ? 'Carreta' : 'Todos os ve\u00edculos';
+  var gerado = new Date().toLocaleDateString('pt-BR')+' \u00e0s '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+  var colunas = veiculo
+    ? ['Rota','KM', veiculoLabel]
+    : ['Rota','KM','Pick-up','Truck','Carreta'];
+
+  var linhas = _freteFiltrado.map(function(r){
+    var cols = ['<td style="padding:6px 10px;font-weight:600">'+fmtRota(r)+'</td>',
+                '<td style="padding:6px 10px;text-align:right">'+(r.km||'\u2014')+'</td>'];
+    if(veiculo){
+      cols.push('<td style="padding:6px 10px;text-align:right;font-weight:600">'+fR(r[veiculo])+'</td>');
+    } else {
+      cols.push('<td style="padding:6px 10px;text-align:right">'+fR(r.pickup)+'</td>');
+      cols.push('<td style="padding:6px 10px;text-align:right">'+fR(r.truck)+'</td>');
+      cols.push('<td style="padding:6px 10px;text-align:right">'+fR(r.carreta)+'</td>');
+    }
+    return '<tr>'+cols.join('')+'</tr>';
+  }).join('');
+
+  var html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
+    +'<title>Tabela de Frete</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:12px;color:#1c1917;padding:24px}'
+    +'@media print{body{padding:0}@page{margin:14mm}}'
+    +'table{width:100%;border-collapse:collapse;font-size:11px}'
+    +'thead th{background:#f5f5f4;padding:6px 10px;text-align:left;font-size:10px;font-weight:600;color:#78716c;text-transform:uppercase;border-bottom:1px solid #e7e5e4}'
+    +'tbody tr:nth-child(even){background:#fafaf9}'
+    +'td{border-bottom:1px solid #f5f5f4}'
+    +'</style></head><body>'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #1c1917">'
+    +'<div><div style="font-size:20px;font-weight:700">Tabela de Frete</div>'
+    +'<div style="font-size:12px;color:#78716c;margin-top:3px">Filtro: '+veiculoLabel+'</div></div>'
+    +'<div style="text-align:right"><div style="font-size:11px;color:#78716c">Gerado em</div>'
+    +'<div style="font-size:12px;font-weight:600">'+gerado+'</div>'
+    +'<div style="font-size:11px;color:#78716c;margin-top:2px">'+_freteFiltrado.length+' rotas</div></div>'
+    +'</div>'
+    +'<table><thead><tr>'+colunas.map(function(c,i){return '<th'+(i>=1?' style="text-align:right"':'')+'>'+c+'</th>';}).join('')+'</tr></thead>'
+    +'<tbody>'+linhas+'</tbody></table>'
+    +'<div style="margin-top:24px;padding-top:14px;border-top:2px solid #1c1917">'
+    +'<div style="font-size:14px;font-weight:700;margin-bottom:10px">Coletas Adicionais</div>'
+    +'<table><thead><tr>'
+    +'<th>Grupo</th><th style="text-align:right">Pick-up</th><th style="text-align:right">Truck</th><th style="text-align:right">Carreta</th>'
+    +'</tr></thead><tbody>'
+    +'<tr><td style="padding:6px 10px;font-weight:600">Coleta Adicional Fora de Piracicaba</td>'
+    +'<td style="padding:6px 10px;text-align:right">'+fmtColeta((COLETAS.fora||{}).pickup)+'</td>'
+    +'<td style="padding:6px 10px;text-align:right">'+fmtColeta((COLETAS.fora||{}).truck)+'</td>'
+    +'<td style="padding:6px 10px;text-align:right">'+fmtColeta((COLETAS.fora||{}).carreta)+'</td></tr>'
+    +'<tr><td style="padding:6px 10px;font-weight:600">Coleta Adicional em Piracicaba</td>'
+    +'<td style="padding:6px 10px;text-align:right">'+fmtColeta((COLETAS.piracicaba||{}).pickup)+'</td>'
+    +'<td style="padding:6px 10px;text-align:right">'+fmtColeta((COLETAS.piracicaba||{}).truck)+'</td>'
+    +'<td style="padding:6px 10px;text-align:right">'+fmtColeta((COLETAS.piracicaba||{}).carreta)+'</td></tr>'
+    +'</tbody></table>'
+    +'</div>'
+    +'</body></html>';
+
+  var w = window.open('','_blank');
+  if(!w){ alert('Pop-up bloqueado. Permita pop-ups para este site.'); return; }
+  w.document.write(html);
+  w.document.close();
+  w.onload = function(){ w.print(); };
 }
 </script>
 </body>
