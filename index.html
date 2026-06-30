@@ -977,9 +977,16 @@ function excluirDoc(idx){
   var r=CONS[idx];
   if(!r) return;
   if(!confirm('Excluir '+r.tipo+' n\u00ba '+r.doc+' ('+fD(r.em)+' \u2014 '+fR(r.val)+')?\n\nEsta a\u00e7\u00e3o n\u00e3o pode ser desfeita.')) return;
+  var docExcluido = r.doc;
   CONS.splice(idx,1);
   marcarAlteracao();
   af();
+  // Excluir especificamente esse registro no Supabase (não depende do upsert geral)
+  if(_sbOnline){
+    var delHeaders = Object.assign({}, sbHeaders(), {'Prefer':'return=minimal'});
+    sbFetch('consolidado?doc=eq.'+docExcluido, {method:'DELETE', headers: delHeaders})
+    .catch(function(e){ console.warn('Falha ao excluir doc remoto:', e); });
+  }
 }
 
 function excluirPag(idx){
@@ -999,6 +1006,12 @@ function excluirPag(idx){
   marcarAlteracao();
   afOji();
   af();
+  // Excluir especificamente esse registro no Supabase
+  if(_sbOnline){
+    var delHeaders = Object.assign({}, sbHeaders(), {'Prefer':'return=minimal'});
+    sbFetch('pagamentos_oji?doc=eq.'+r.doc+'&data=eq.'+r.data+'&valor=eq.'+r.valor, {method:'DELETE', headers: delHeaders})
+    .catch(function(e){ console.warn('Falha ao excluir pagamento remoto:', e); });
+  }
 }
 
 function renderCards(data){
@@ -2252,40 +2265,44 @@ function sincronizarSupabase(){
   var hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   setBadge('\u231B Sincronizando...', true);
 
-  // Limpar tabelas usando filtro obrigatório do PostgREST
-  var delHeaders = Object.assign({}, sbHeaders(), {'Prefer': 'return=minimal'});
-  sbFetch('consolidado?id=neq.00000000-0000-0000-0000-000000000000', {method:'DELETE', headers: delHeaders})
-  .then(function(){
-    return sbFetch('pagamentos_oji?id=neq.00000000-0000-0000-0000-000000000000', {method:'DELETE', headers: delHeaders});
-  })
-  .then(function(){
-    // Inserir CONS em lotes de 100
+  // ESTRATÉGIA SEGURA: usa UPSERT real (requer UNIQUE constraint em "doc" e "doc"
+  // respectivamente). NUNCA deleta a tabela inteira — apenas atualiza/insere o que
+  // mudou. Isso elimina qualquer janela de dados vazios e é muito mais rápido,
+  // pois evita reenviar e apagar centenas de registros a cada pequena edição.
+  var upsertHeaders = Object.assign({}, sbHeaders(), {'Prefer': 'resolution=merge-duplicates,return=minimal'});
+
+  function upsertEmLotes(tabela, items, mapFn, onConflict){
     var lotes = [];
-    for(var i=0; i<CONS.length; i+=100) lotes.push(CONS.slice(i,i+100));
+    for(var i=0; i<items.length; i+=200) lotes.push(items.slice(i,i+200));
+    if(lotes.length===0) return Promise.resolve(true);
+    var falhou = false;
     return lotes.reduce(function(p, lote){
       return p.then(function(){
-        var rows = lote.map(function(r){
-          return {doc:r.doc, tipo:r.tipo, em:r.em||null, venc:r.venc||null,
-                  pgto:r.pgto||null, val:r.val, vei:r.vei||null};
+        if(falhou) return;
+        var rows = lote.map(mapFn);
+        return sbFetch(tabela+'?on_conflict='+onConflict, {method:'POST', headers: upsertHeaders, body:JSON.stringify(rows)})
+        .then(function(r){
+          if(!r.ok){
+            falhou = true;
+            console.error('Falha no upsert de '+tabela+' (HTTP '+r.status+').');
+          }
         });
-        return sbFetch('consolidado', {method:'POST', body:JSON.stringify(rows)});
       });
-    }, Promise.resolve());
+    }, Promise.resolve()).then(function(){ return !falhou; });
+  }
+
+  upsertEmLotes('consolidado', CONS, function(r){
+    return {doc:r.doc, tipo:r.tipo, em:r.em||null, venc:r.venc||null,
+            pgto:r.pgto||null, val:r.val, vei:r.vei||null};
+  }, 'doc')
+  .then(function(consOk){
+    if(!consOk) throw new Error('Falha ao sincronizar consolidado — ver console.');
+    return upsertEmLotes('pagamentos_oji', PAG_OJI, function(r){
+      return {doc:r.doc, data:r.data||null, valor:r.valor};
+    }, 'doc,data,valor');
   })
-  .then(function(){
-    // Inserir PAG_OJI em lotes de 100
-    var lotes = [];
-    for(var i=0; i<PAG_OJI.length; i+=100) lotes.push(PAG_OJI.slice(i,i+100));
-    return lotes.reduce(function(p, lote){
-      return p.then(function(){
-        var rows = lote.map(function(r){
-          return {doc:r.doc, data:r.data||null, valor:r.valor};
-        });
-        return sbFetch('pagamentos_oji', {method:'POST', body:JSON.stringify(rows)});
-      });
-    }, Promise.resolve());
-  })
-  .then(function(){
+  .then(function(pagOk){
+    if(!pagOk) throw new Error('Falha ao sincronizar pagamentos_oji — ver console.');
     var hora2 = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     setBadge('\u2713 Sincronizado \u00e0s ' + hora2 + ' \u2014 ' + CONS.length + ' docs', true);
     var el=document.getElementById('topbar-count');
@@ -3037,7 +3054,7 @@ function aplicarFreteData(novo){
 
 // ── ANTI-CACHE: forçar reload se a página estiver em cache antigo ──
 (function(){
-  var BUILD_TS = '20260630134715';
+  var BUILD_TS = '20260630135640';
   var lastSeen = localStorage.getItem('app_build_ts');
   if(lastSeen && lastSeen !== BUILD_TS){
     // Nova versão detectada — limpar cache de visualização e recarregar uma vez
