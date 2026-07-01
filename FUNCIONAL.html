@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -89,8 +89,11 @@ tfoot td{padding:10px 14px;font-size:13px;font-weight:600;border-top:2px solid #
 .b-ok{background:#dcfce7;color:#15803d}.b-late{background:#fef3c7;color:#92400e}
 .b-due{background:#fee2e2;color:#991b1b}.b-open{background:#dbeafe;color:#1d4ed8}
 .muted{color:#a8a29e}
+/* Badge placa veículo */
 .b-placa{background:#f5f5f4;color:#44403c;border:1px solid #e7e5e4}
+/* Vei-inp — aparência de badge quando tem valor e não está em foco */
 .vei-inp:not(:focus):not([value=""]){background:#f5f5f4;border-color:#e7e5e4;border-radius:20px;font-weight:600;color:#44403c;letter-spacing:.03em}
+/* Per-page select */
 .per-page-sel{height:28px;padding:0 6px;border:1px solid #d6d3d1;border-radius:6px;font-size:12px;color:#78716c;background:#fff;cursor:pointer}
 .per-page-sel:focus{outline:none;border-color:#1c1917}
 /* VEHICLE EDIT */
@@ -379,7 +382,7 @@ body.modo-consulta .mtab{pointer-events:none}
     <div class="home-card" onclick="showTab('dashboard')">
       <div class="home-icon" style="background:#ede9fe;color:#7c3aed">&#x1F4C8;</div>
       <div class="home-label">Dashboard</div>
-      <div class="home-sub">Vis&#xE3;o geral e gr&#xE1;ficos</div>
+      <div class="home-sub" id="home-sub-dashboard">Vis&#xE3;o geral e gr&#xE1;ficos</div>
     </div>
     <div class="home-card" onclick="showTab('consolidado')">
       <div class="home-icon" style="background:#dbeafe;color:#2563eb">&#x1F4CA;</div>
@@ -389,22 +392,22 @@ body.modo-consulta .mtab{pointer-events:none}
     <div class="home-card" onclick="showTab('oji')">
       <div class="home-icon" style="background:#dcfce7;color:#16a34a">&#x1F4B0;</div>
       <div class="home-label">Pagamentos Oji</div>
-      <div class="home-sub">Lan&#xE7;amentos de pagamento</div>
+      <div class="home-sub" id="home-sub-oji">Lan&#xE7;amentos de pagamento</div>
     </div>
     <div class="home-card" onclick="showTab('pdf')">
       <div class="home-icon" style="background:#fef3c7;color:#d97706">&#x1F4C4;</div>
       <div class="home-label">Relat&#xF3;rio PDF</div>
-      <div class="home-sub">Gerar relat&#xF3;rios</div>
+      <div class="home-sub" id="home-sub-pdf">Gerar relat&#xF3;rios</div>
     </div>
     <div class="home-card" onclick="showTab('upload')">
       <div class="home-icon" style="background:#fee2e2;color:#dc2626">&#x2B06;&#xFE0F;</div>
       <div class="home-label">Importar Dados</div>
-      <div class="home-sub">CSV, XML e manual</div>
+      <div class="home-sub" id="home-sub-upload">CSV, XML e manual</div>
     </div>
     <div class="home-card" onclick="showTab('frete')">
       <div class="home-icon" style="background:#e0f2fe;color:#0891b2">&#x1F69A;</div>
       <div class="home-label">Tabela de Frete</div>
-      <div class="home-sub">Rotas e tarifas</div>
+      <div class="home-sub" id="home-sub-frete">Rotas e tarifas</div>
     </div>
   </div>
 </div>
@@ -412,41 +415,53 @@ body.modo-consulta .mtab{pointer-events:none}
 <!-- CONSOLIDADO -->
 <!-- DASHBOARD -->
 <div id="page-dashboard" class="page">
+
+  <!-- Linha 1: KPIs principais -->
   <div class="cards" id="dash-kpis"></div>
+
+  <!-- Linha 2: KPIs financeiros avançados -->
   <div class="cards" id="dash-kpis2" style="margin-bottom:20px"></div>
+
+  <!-- Linha 3: Evolução mensal + Aging de recebíveis -->
   <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
     <div class="panel" style="padding:20px">
-      <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:16px">Evolução mensal — Volume emitido vs Recebido</div>
+      <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:16px">Evolu&#xE7;&#xE3;o mensal &mdash; Volume emitido vs Pago</div>
       <div id="chart-mensal" style="width:100%;height:220px"></div>
     </div>
     <div class="panel" style="padding:20px">
-      <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:12px">Aging de recebíveis</div>
-      <div id="chart-aging"></div>
+      <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:12px">Aging de receb&#xED;veis</div>
+      <div id="chart-aging" style="width:100%"></div>
     </div>
   </div>
+
+  <!-- Linha 4: Funil de recebimento + Próximos vencimentos -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
     <div class="panel" style="padding:20px">
       <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:16px">Funil de recebimento</div>
-      <div id="chart-funil"></div>
+      <div id="chart-funil" style="width:100%"></div>
     </div>
     <div class="panel" style="padding:20px">
-      <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:12px">Próximos vencimentos</div>
-      <div id="dash-proximos"></div>
+      <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:12px">Pr&#xF3;ximos vencimentos</div>
+      <div id="dash-proximos" style="width:100%"></div>
     </div>
   </div>
+
+  <!-- Linha 5: Distribuição por status -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
     <div class="panel" style="padding:20px">
-      <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:12px">Distribuição por status</div>
+      <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:12px">Distribui&#xE7;&#xE3;o por status</div>
       <div id="chart-status" style="width:100%;height:180px"></div>
       <div id="dash-legend" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center"></div>
     </div>
     <div class="panel" style="padding:20px">
-      <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:12px">Ticket médio por tipo</div>
-      <div id="chart-ticket"></div>
+      <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:12px">Ticket m&#xE9;dio por tipo</div>
+      <div id="chart-ticket" style="width:100%"></div>
     </div>
   </div>
+
+  <!-- Linha 6: Tabela por veículo ampliada -->
   <div class="panel" style="padding:20px;margin-bottom:16px">
-    <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:16px">Resumo financeiro por veículo / placa</div>
+    <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:16px">Resumo financeiro por ve&#xED;culo / placa</div>
     <div style="overflow-x:auto">
       <table id="dash-vei-table" style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="border-bottom:1px solid #e7e5e4">
@@ -455,18 +470,20 @@ body.modo-consulta .mtab{pointer-events:none}
           <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase">CTe</th>
           <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase">NFS-e</th>
           <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase">Total emitido</th>
-          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase">Total recebido</th>
+          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase">Total pago</th>
           <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase">A receber</th>
           <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase">PMR (dias)</th>
-          <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase">% Recebido</th>
+          <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase">% Pago</th>
         </tr></thead>
         <tbody id="dash-vei-body"></tbody>
         <tfoot><tr id="dash-vei-foot" style="border-top:2px solid #e7e5e4;background:#fafaf9;font-weight:600"></tr></tfoot>
       </table>
     </div>
   </div>
+
+  <!-- Linha 7: Volume por veículo -->
   <div class="panel" style="padding:20px">
-    <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:16px">Volume por veículo (emitido vs recebido)</div>
+    <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:16px">Volume por ve&#xED;culo (emitido vs pago)</div>
     <div id="chart-veiculo" style="width:100%;height:240px"></div>
   </div>
 </div>
@@ -523,7 +540,7 @@ body.modo-consulta .mtab{pointer-events:none}
     <div class="foot">
       <span class="foot-info" id="pi-cons"></span>
       <div class="foot-btns">
-        <select class="per-page-sel" title="Registros por página" onchange="PER=+this.value;cS.pg=0;oS.pg=0;renderC();renderO()">
+        <select class="per-page-sel" title="Registros por p&#xE1;gina" onchange="PER=+this.value;cS.pg=0;oS.pg=0;renderC();renderO()">
           <option value="20">20/pág</option>
           <option value="50">50/pág</option>
           <option value="100">100/pág</option>
@@ -568,9 +585,7 @@ body.modo-consulta .mtab{pointer-events:none}
         <input type="text" id="fOD" placeholder="Buscar n&#xBA;&#x2026;" oninput="afOji()">
       </div>
     </div>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px">
-      <button class="btn btn-ghost" id="btn-ver-arquivo-oji" onclick="abrirArquivoOji()">&#x1F4C2; Arquivo (0)</button>
-      <button class="btn btn-ghost" onclick="arquivarOjiAntigos()">&#x1F4E6; Arquivar 2025 e jan/2026</button>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
       <button class="btn btn-dark" onclick="gerarPDFOji()">&#x1F5A8; Gerar Relat&#xF3;rio (filtro atual)</button>
     </div>
     <div class="tw">
@@ -886,77 +901,17 @@ function normDate(s){
   if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   return null;
 }
-// ── CALENDÁRIO: feriados nacionais + móveis ──────────────
-function calcPascoa(ano){
-  var a=ano%19,b=Math.floor(ano/100),c=ano%100;
-  var d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25);
-  var g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30;
-  var i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7;
-  var m=Math.floor((a+11*h+22*l)/451);
-  var mes=Math.floor((h+l-7*m+114)/31);
-  var dia=((h+l-7*m+114)%31)+1;
-  return new Date(ano,mes-1,dia,12,0,0);
-}
-
-function isFeriado(d){
-  var ano=d.getFullYear(),mes=d.getMonth()+1,dia=d.getDate();
-  // Feriados nacionais fixos
-  var fixos=[[1,1],[4,21],[5,1],[9,7],[10,12],[11,2],[11,15],[12,25]];
-  for(var i=0;i<fixos.length;i++){
-    if(mes===fixos[i][0]&&dia===fixos[i][1]) return true;
-  }
-  // Feriados móveis (base: Páscoa)
-  var pascoa=calcPascoa(ano);
-  var moveis=[
-    new Date(+pascoa-48*86400000), // Carnaval — segunda
-    new Date(+pascoa-47*86400000), // Carnaval — terça
-    new Date(+pascoa- 2*86400000), // Sexta-feira Santa
-    new Date(+pascoa),             // Páscoa
-    new Date(+pascoa+60*86400000)  // Corpus Christi
-  ];
-  for(var j=0;j<moveis.length;j++){
-    var mv=moveis[j];
-    if(mv.getFullYear()===ano&&mv.getMonth()+1===mes&&mv.getDate()===dia) return true;
-  }
-  return false;
-}
-
-function proximoDiaUtil(iso){
-  if(!iso) return iso;
-  var d=new Date(iso+'T12:00:00');
-  while(d.getDay()===0||d.getDay()===6||isFeriado(d)){
-    d.setDate(d.getDate()+1);
-  }
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-}
-// Recalcular vencimento de todos os docs com regras atuais (dia 31 + próximo dia útil)
-function migrarVencTodos(){
-  var alterou=false;
-  CONS.forEach(function(r){
-    if(!r.em) return;
-    var novoVenc=calcVenc(r.em);
-    if(novoVenc && novoVenc!==r.venc){
-      r.venc=novoVenc;
-      var st=calcSt(r.pgto,r.venc); r.stKey=st.key; r.stLbl=st.lbl;
-      alterou=true;
-    }
-  });
-  if(alterou) marcarAlteracao();
-  return alterou;
-}
 function calcVenc(em){
   if(!em) return null;
   var p=em.split('-').map(Number),y=p[0],m=p[1],d=p[2];
-  if(d>30){d=1;if(m<12)m++;else{m=1;y++;}}
   var nm=m<12?m+1:1,ny=m<12?y:y+1;
-  if(d<=10) return proximoDiaUtil(ny+'-'+String(nm).padStart(2,'0')+'-10');
-  if(d<=20) return proximoDiaUtil(ny+'-'+String(nm).padStart(2,'0')+'-20');
-  return proximoDiaUtil(ny+'-'+String(nm).padStart(2,'0')+'-30');
+  if(d<=10) return ny+'-'+String(nm).padStart(2,'0')+'-10';
+  if(d<=20) return ny+'-'+String(nm).padStart(2,'0')+'-20';
+  return ny+'-'+String(nm).padStart(2,'0')+'-30';
 }
 
 // Recalcular status com hoje real
 CONS.forEach(function(r){ var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.lbl; });
-
 
 // ── TABS ──
 function showTab(name){
@@ -1004,7 +959,7 @@ function buildMS(id, items, cb){
   clr.onclick=function(e){ e.stopPropagation(); clrMS(id,cb); };
   dd.appendChild(clr);
   var close=document.createElement('button');
-  close.className='msclr'; close.textContent='x Fechar';
+  close.className='msclr'; close.textContent='\u2715 Fechar';
   close.style.borderTop='none'; close.style.color='#1c1917'; close.style.fontWeight='600';
   close.onclick=function(e){ e.stopPropagation(); closeAllMS(); };
   dd.appendChild(close);
@@ -1523,6 +1478,55 @@ function buildPDFHTML(data){
     +'<div>'
     +'<div style="font-size:20px;font-weight:700;color:#1c1917">Relat\u00f3rio de Pagamentos</div>'
     +'<div style="font-size:12px;color:#78716c;margin-top:3px">NFS-e &amp; CTe &mdash; Novatrans Log\u00edstica</div>'
+    +'</div>'
+    +'<div style="text-align:right">'
+    +'<div style="font-size:11px;color:#78716c">Gerado em</div>'
+    +'<div style="font-size:12px;font-weight:600;color:#1c1917">'+gerado+'</div>'
+    +'<div style="font-size:11px;color:#78716c;margin-top:2px">'+s.n+' documentos selecionados</div>'
+    +'</div></div>'
+
+    // Cards de resumo — apenas os status presentes nos dados filtrados
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">'
+    +buildCardsResumo(s, pdfCard)
+    +'</div>'
+
+    // Gráficos
+    +grafHTML
+
+    // Resumo por veículo
+    +veiHTML
+
+    // Alerta vencidos
+    +(s.tdue.length>0
+      ?'<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#991b1b">'
+        +'<strong>&#x26A0; '+s.tdue.length+' documento(s) vencido(s)</strong> &mdash; '
+        +fR(s.tdue.reduce(function(a,r){return a+r.val;},0))+' aguardando pagamento'
+        +'</div>'
+      :'')
+
+    // Tabela
+    +'<h2 style="font-size:13px;font-weight:700;margin-bottom:8px;color:#1c1917;border-bottom:1px solid #e7e5e4;padding-bottom:6px">Documentos</h2>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:11px">'
+    +'<thead><tr style="background:#f5f5f4">'
+    +'<th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:600;color:#78716c;text-transform:uppercase;border-bottom:1px solid #e7e5e4">Doc</th>'
+    +'<th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:600;color:#78716c;text-transform:uppercase;border-bottom:1px solid #e7e5e4">Tipo</th>'
+    +'<th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:600;color:#78716c;text-transform:uppercase;border-bottom:1px solid #e7e5e4">Emiss\u00e3o</th>'
+    +'<th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:600;color:#78716c;text-transform:uppercase;border-bottom:1px solid #e7e5e4">Vencimento</th>'
+    +'<th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:600;color:#78716c;text-transform:uppercase;border-bottom:1px solid #e7e5e4">Pagamento</th>'
+    +'<th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:600;color:#78716c;text-transform:uppercase;border-bottom:1px solid #e7e5e4">Valor</th>'
+    +'<th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:600;color:#78716c;text-transform:uppercase;border-bottom:1px solid #e7e5e4">Ve\u00edculo</th>'
+    +'<th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:600;color:#78716c;text-transform:uppercase;border-bottom:1px solid #e7e5e4">Status</th>'
+    +'</tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot><tr style="border-top:2px solid #e7e5e4;background:#f5f5f4">'
+    +'<td colspan="5" style="padding:7px 8px;font-weight:700">Total</td>'
+    +'<td style="padding:7px 8px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">'+fR(s.total)+'</td>'
+    +'<td colspan="2" style="padding:7px 8px;font-weight:600;color:#78716c">'+s.n+' documentos</td>'
+    +'</tr></tfoot>'
+    +'</table>'
+    +'<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e7e5e4;font-size:10px;color:#a8a29e;display:flex;justify-content:space-between">'
+    +'<span>Sistema de Pagamentos NFS-e &amp; CTe &mdash; Novatrans Log\u00edstica</span>'
+    +'<span>'+gerado+'</span>'
     +'</div>'
     +'</body></html>';
 }
@@ -2317,26 +2321,50 @@ function showImportMsg(added, replaced, errors, tipo){
 function renderDashboard(){
   var data=CONS;
   var tval=0,pval=0,tok=0,tlate=0,tdue=0,topen=0;
+  var pmrSoma=0,pmrN=0;
+  var hoje=TODAY;
+
   data.forEach(function(r){
     tval+=r.val;
-    if(r.pgto)pval+=r.val;
-    if(r.stKey==='ok')tok++;
-    else if(r.stKey==='late')tlate++;
-    else if(r.stKey==='due')tdue++;
+    if(r.pgto){ pval+=r.val; }
+    if(r.stKey==='ok'){ tok++;
+      if(r.em&&r.pgto){ var d=Math.round((new Date(r.pgto+'T00:00:00')-new Date(r.em+'T00:00:00'))/86400000); if(d>=0){pmrSoma+=d;pmrN++;} }
+    } else if(r.stKey==='late'){ tlate++;
+      if(r.em&&r.pgto){ var d=Math.round((new Date(r.pgto+'T00:00:00')-new Date(r.em+'T00:00:00'))/86400000); if(d>=0){pmrSoma+=d;pmrN++;} }
+    } else if(r.stKey==='due') tdue++;
     else topen++;
   });
 
-  // KPIs
-  var aval=data.filter(function(r){return r.stKey==='open';}).reduce(function(a,r){return a+r.val;},0);
+  var pmr = pmrN>0 ? Math.round(pmrSoma/pmrN) : 0;
+  var txInad = data.length>0 ? (tdue/data.length*100).toFixed(1) : 0;
+  var aval = data.filter(function(r){return r.stKey==='open';}).reduce(function(a,r){return a+r.val;},0);
+  var em30 = data.filter(function(r){
+    if(r.stKey!=='open'||!r.venc) return false;
+    var dias=Math.round((new Date(r.venc+'T00:00:00')-hoje)/86400000);
+    return dias>=0&&dias<=30;
+  });
+  var val30=em30.reduce(function(a,r){return a+r.val;},0);
+  var tickCte=0,nCte=0,tickNfs=0,nNfs=0;
+  data.forEach(function(r){ if(r.tipo==='CTe'){tickCte+=r.val;nCte++;} else{tickNfs+=r.val;nNfs++;} });
+
+  // ── KPIs linha 1 ──
   document.getElementById('dash-kpis').innerHTML=
     dkpi('','Total emitido',fR(tval),data.length+' documentos')+
-    dkpi('ok','Total pago',fR(pval),(tok+tlate)+' documentos')+
+    dkpi('ok','Total recebido',fR(pval),(tok+tlate)+' documentos')+
     dkpi('danger','A receber',fR(tval-pval),tdue+' vencido(s)')+
     dkpi('accent','A vencer',fR(aval),topen+' doc(s)')+
     dkpi('late','Pago c/ atraso',tlate,'de '+(tok+tlate)+' pagos')+
-    dkpi('','% Pago',tval>0?Math.round(pval/tval*100)+'%':'0%','do volume total');
+    dkpi('','% Recebido',tval>0?Math.round(pval/tval*100)+'%':'0%','do volume total');
 
-  // ── Gráfico mensal (barras SVG) ──
+  // ── KPIs linha 2 — métricas avançadas ──
+  document.getElementById('dash-kpis2').innerHTML=
+    dkpi('','PMR',pmr+' dias','prazo médio de recebimento')+
+    dkpi(txInad>10?'danger':txInad>5?'late':'ok','Inadimplência',txInad+'%',tdue+' doc(s) vencido(s)')+
+    dkpi('accent','Vence em 30d',fR(val30),em30.length+' doc(s)')+
+    dkpi('','Ticket médio CTe',nCte?fR(tickCte/nCte):'—',nCte+' CTe')+
+    dkpi('','Ticket médio NFS-e',nNfs?fR(tickNfs/nNfs):'—',nNfs+' NFS-e');
+
+  // ── Gráfico mensal ──
   var meses={};
   data.forEach(function(r){
     var m=r.em?r.em.slice(0,7):'?';
@@ -2349,33 +2377,135 @@ function renderDashboard(){
   var bw=Math.max(8,Math.floor((W-PL-PR)/mKeys.length/2-4));
   var gap=Math.floor((W-PL-PR)/mKeys.length);
   var svgM='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:100%" xmlns="http://www.w3.org/2000/svg">';
-  // Grid
   [0,0.25,0.5,0.75,1].forEach(function(f){
     var y=PT+(H-PT-PB)*(1-f);
     svgM+='<line x1="'+PL+'" y1="'+y+'" x2="'+(W-PR)+'" y2="'+y+'" stroke="#f5f5f4" stroke-width="1"/>';
-    var lbl=(maxM*f/1000).toFixed(0)+'k';
-    svgM+='<text x="'+(PL-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="9" fill="#a8a29e">R$'+lbl+'</text>';
+    svgM+='<text x="'+(PL-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="9" fill="#a8a29e">R$'+((maxM*f/1000).toFixed(0))+'k</text>';
   });
   mKeys.forEach(function(m,i){
     var x=PL+i*gap+gap/2;
-    var hEm=((H-PT-PB)*(meses[m].em/maxM));
-    var hPg=((H-PT-PB)*(meses[m].pago/maxM));
-    var yEm=PT+(H-PT-PB)-hEm;
-    var yPg=PT+(H-PT-PB)-hPg;
-    svgM+='<rect x="'+(x-bw-2)+'" y="'+yEm+'" width="'+bw+'" height="'+hEm+'" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" rx="2"/>';
-    svgM+='<rect x="'+(x+2)+'" y="'+yPg+'" width="'+bw+'" height="'+hPg+'" fill="#bbf7d0" stroke="#16a34a" stroke-width="1" rx="2"/>';
-    var lbl=new Date(m.split('-')[0],m.split('-')[1]-1,1).toLocaleDateString('pt-BR',{month:'short'});
-    svgM+='<text x="'+x+'" y="'+(H-PB+14)+'" text-anchor="middle" font-size="10" fill="#78716c">'+lbl+'</text>';
+    var hEm=(H-PT-PB)*(meses[m].em/maxM);
+    var hPg=(H-PT-PB)*(meses[m].pago/maxM);
+    var yEm=PT+(H-PT-PB)-hEm, yPg=PT+(H-PT-PB)-hPg;
+    var lblFull=new Date(m.split('-')[0],m.split('-')[1]-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    svgM+='<rect x="'+(x-bw-2)+'" y="'+yEm+'" width="'+bw+'" height="'+hEm+'" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" rx="2"><title>'+lblFull+'\nEmitido: '+fR(meses[m].em)+'</title></rect>';
+    svgM+='<rect x="'+(x+2)+'" y="'+yPg+'" width="'+bw+'" height="'+hPg+'" fill="#bbf7d0" stroke="#16a34a" stroke-width="1" rx="2"><title>'+lblFull+'\nRecebido: '+fR(meses[m].pago)+'</title></rect>';
+    svgM+='<text x="'+x+'" y="'+(H-PB+14)+'" text-anchor="middle" font-size="10" fill="#78716c">'+new Date(m.split('-')[0],m.split('-')[1]-1,1).toLocaleDateString('pt-BR',{month:'short'})+'</text>';
   });
-  // Legenda
-  svgM+='<rect x="'+PL+'" y="4" width="10" height="10" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" rx="2"/>';
-  svgM+='<text x="'+(PL+14)+'" y="13" font-size="10" fill="#78716c">Emitido</text>';
-  svgM+='<rect x="'+(PL+70)+'" y="4" width="10" height="10" fill="#bbf7d0" stroke="#16a34a" stroke-width="1" rx="2"/>';
-  svgM+='<text x="'+(PL+84)+'" y="13" font-size="10" fill="#78716c">Pago</text>';
+  svgM+='<rect x="'+PL+'" y="4" width="10" height="10" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" rx="2"/><text x="'+(PL+14)+'" y="13" font-size="10" fill="#78716c">Emitido</text>';
+  svgM+='<rect x="'+(PL+70)+'" y="4" width="10" height="10" fill="#bbf7d0" stroke="#16a34a" stroke-width="1" rx="2"/><text x="'+(PL+84)+'" y="13" font-size="10" fill="#78716c">Recebido</text>';
   svgM+='</svg>';
   document.getElementById('chart-mensal').innerHTML=svgM;
 
-  // ── Gráfico donut status (SVG) ──
+  // ── Aging de recebíveis ──
+  var agingFaixas=[
+    {lbl:'1 – 15 dias',min:1,max:15,col:'#f59e0b',bg:'#fef3c7'},
+    {lbl:'16 – 30 dias',min:16,max:30,col:'#ef4444',bg:'#fee2e2'},
+    {lbl:'31 – 60 dias',min:31,max:60,col:'#dc2626',bg:'#fecaca'},
+    {lbl:'+ 60 dias',min:61,max:99999,col:'#991b1b',bg:'#fca5a5'}
+  ];
+  var agingData=agingFaixas.map(function(f){
+    var docs=data.filter(function(r){
+      if(r.stKey!=='due'||!r.venc) return false;
+      var dias=Math.round((hoje-new Date(r.venc+'T00:00:00'))/86400000);
+      return dias>=f.min&&dias<=f.max;
+    });
+    return {lbl:f.lbl,col:f.col,bg:f.bg,n:docs.length,val:docs.reduce(function(a,r){return a+r.val;},0)};
+  });
+  var maxAging=Math.max.apply(null,agingData.map(function(f){return f.val;}))||1;
+  var agHTML='';
+  if(tdue===0){
+    agHTML='<div style="padding:24px;text-align:center;color:#16a34a;font-size:13px;font-weight:600">✓ Sem recebíveis vencidos</div>';
+  } else {
+    agHTML='<div style="display:flex;flex-direction:column;gap:12px">';
+    agingData.forEach(function(f){
+      if(!f.n) return;
+      var pct=Math.round(f.val/maxAging*100);
+      agHTML+='<div>'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+        +'<span style="font-size:12px;font-weight:600;color:'+f.col+'">'+f.lbl+'</span>'
+        +'<span style="font-size:12px;color:#78716c">'+f.n+' doc(s) · '+fR(f.val)+'</span>'
+        +'</div>'
+        +'<div style="height:10px;background:#f5f5f4;border-radius:5px;overflow:hidden">'
+        +'<div style="height:100%;width:'+pct+'%;background:'+f.col+';border-radius:5px;transition:width .5s ease"></div>'
+        +'</div></div>';
+    });
+    agHTML+='</div>';
+  }
+  document.getElementById('chart-aging').innerHTML=agHTML;
+
+  // ── Funil de recebimento ──
+  var funilEtapas=[
+    {lbl:'Emitido',n:data.length,val:tval,col:'#6366f1',bg:'#ede9fe'},
+    {lbl:'Recebido (total)',n:tok+tlate,val:pval,col:'#16a34a',bg:'#dcfce7'},
+    {lbl:'Pago em dia',n:tok,val:data.filter(function(r){return r.stKey==='ok';}).reduce(function(a,r){return a+r.val;},0),col:'#15803d',bg:'#bbf7d0'},
+    {lbl:'Pago c/ atraso',n:tlate,val:data.filter(function(r){return r.stKey==='late';}).reduce(function(a,r){return a+r.val;},0),col:'#d97706',bg:'#fef3c7'},
+    {lbl:'Vencido',n:tdue,val:data.filter(function(r){return r.stKey==='due';}).reduce(function(a,r){return a+r.val;},0),col:'#dc2626',bg:'#fee2e2'},
+    {lbl:'A vencer',n:topen,val:aval,col:'#2563eb',bg:'#dbeafe'}
+  ];
+  var maxFunil=tval||1;
+  var funHTML='<div style="display:flex;flex-direction:column;gap:8px">';
+  funilEtapas.forEach(function(e){
+    if(!e.n) return;
+    var pct=Math.round(e.val/maxFunil*100);
+    var barW=Math.max(8,pct);
+    funHTML+='<div style="display:flex;align-items:center;gap:10px">'
+      +'<div style="min-width:110px;font-size:11px;font-weight:600;color:'+e.col+';text-align:right">'+e.lbl+'</div>'
+      +'<div style="flex:1;height:22px;background:#f5f5f4;border-radius:4px;overflow:hidden;position:relative">'
+      +'<div style="height:100%;width:'+barW+'%;background:'+e.bg+';border:1px solid '+e.col+';border-radius:4px;transition:width .5s ease"></div>'
+      +'<span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:600;color:'+e.col+'">'+e.n+' doc · '+fR(e.val)+' ('+pct+'%)</span>'
+      +'</div></div>';
+  });
+  funHTML+='</div>';
+  document.getElementById('chart-funil').innerHTML=funHTML;
+
+  // ── Próximos vencimentos ──
+  var prox=data.filter(function(r){
+    return r.stKey==='open'&&r.venc;
+  }).sort(function(a,b){return a.venc<b.venc?-1:1;}).slice(0,10);
+  var proxHTML='';
+  if(!prox.length){
+    proxHTML='<div style="padding:24px;text-align:center;color:#a8a29e;font-size:13px">Nenhum documento a vencer</div>';
+  } else {
+    proxHTML='<div style="display:flex;flex-direction:column;gap:6px">';
+    prox.forEach(function(r){
+      var diasR=Math.round((new Date(r.venc+'T00:00:00')-hoje)/86400000);
+      var urgCol=diasR<=7?'#dc2626':diasR<=15?'#d97706':'#2563eb';
+      var urgBg=diasR<=7?'#fee2e2':diasR<=15?'#fef3c7':'#dbeafe';
+      proxHTML+='<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:'+urgBg+';border-radius:8px;gap:8px">'
+        +'<div>'
+        +'<span style="font-size:12px;font-weight:700;color:#1c1917">'+r.doc+'</span>'
+        +'<span style="font-size:11px;color:#78716c;margin-left:6px">'+r.tipo+'</span>'
+        +(r.vei?'<span style="font-size:10px;color:#78716c;margin-left:4px">· '+r.vei+'</span>':'')
+        +'</div>'
+        +'<div style="text-align:right;flex-shrink:0">'
+        +'<div style="font-size:12px;font-weight:700;color:'+urgCol+'">'+fD(r.venc)+'</div>'
+        +'<div style="font-size:10px;color:'+urgCol+'">em '+diasR+'d · '+fR(r.val)+'</div>'
+        +'</div></div>';
+    });
+    if(topen>10) proxHTML+='<div style="font-size:11px;color:#a8a29e;text-align:center;padding:6px">+ '+(topen-10)+' mais a vencer</div>';
+    proxHTML+='</div>';
+  }
+  document.getElementById('dash-proximos').innerHTML=proxHTML;
+
+  // ── Ticket médio por tipo ──
+  var tickHTML='<div style="display:flex;flex-direction:column;gap:16px;padding-top:8px">';
+  [{tipo:'CTe',n:nCte,tick:nCte?tickCte/nCte:0,tot:tickCte,col:'#5b21b6',bg:'#ede9fe'},
+   {tipo:'NFS-e',n:nNfs,tick:nNfs?tickNfs/nNfs:0,tot:tickNfs,col:'#065f46',bg:'#d1fae5'}
+  ].forEach(function(t){
+    tickHTML+='<div>'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+      +'<span style="background:'+t.bg+';color:'+t.col+';font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px">'+t.tipo+'</span>'
+      +'<span style="font-size:12px;color:#78716c">'+t.n+' documentos</span>'
+      +'</div>'
+      +'<div style="font-size:22px;font-weight:700;color:#1c1917;margin-bottom:2px">'+fR(t.tick)+'</div>'
+      +'<div style="font-size:11px;color:#78716c">Total: '+fR(t.tot)+'</div>'
+      +'</div>';
+  });
+  tickHTML+='</div>';
+  document.getElementById('chart-ticket').innerHTML=tickHTML;
+
+  // ── Donut status ──
   var stData=[tok,tlate,tdue,topen];
   var stCols=['#16a34a','#d97706','#dc2626','#2563eb'];
   var stBg=['#dcfce7','#fef3c7','#fee2e2','#dbeafe'];
@@ -2394,16 +2524,14 @@ function renderDashboard(){
     var lg=sweep>Math.PI?1:0;
     svgS+='<path d="M'+x1+' '+y1+' A'+ro+' '+ro+' 0 '+lg+' 1 '+x2+' '+y2
       +' L'+xi2+' '+yi2+' A'+ri+' '+ri+' 0 '+lg+' 0 '+xi1+' '+yi1+' Z"'
-      +' fill="'+stBg[i]+'" stroke="'+stCols[i]+'" stroke-width="2"/>';
+      +' fill="'+stBg[i]+'" stroke="'+stCols[i]+'" stroke-width="2" style="cursor:pointer">'
+      +'<title>'+stLbls[i]+': '+v+' doc(s) — '+Math.round(v/total2*100)+'%</title></path>';
     ang+=sweep;
   });
-  // Centro
   svgS+='<text x="'+cx+'" y="'+(cy-6)+'" text-anchor="middle" font-size="20" font-weight="700" fill="#1c1917">'+total2+'</text>';
   svgS+='<text x="'+cx+'" y="'+(cy+12)+'" text-anchor="middle" font-size="9" fill="#78716c">documentos</text>';
   svgS+='</svg>';
   document.getElementById('chart-status').innerHTML=svgS;
-
-  // Legenda status
   var leg='';
   stLbls.forEach(function(l,i){
     leg+='<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#78716c">'
@@ -2412,13 +2540,17 @@ function renderDashboard(){
   });
   document.getElementById('dash-legend').innerHTML=leg;
 
-  // ── Tabela por veículo ──
+  // ── Tabela por veículo com PMR ──
   var veis={};
   data.forEach(function(r){
     var v=r.vei||'Sem placa';
-    if(!veis[v])veis[v]={cte:0,nfs:0,val:0,pval:0};
+    if(!veis[v])veis[v]={cte:0,nfs:0,val:0,pval:0,pmrS:0,pmrN:0};
     veis[v].val+=r.val; if(r.pgto)veis[v].pval+=r.val;
     if(r.tipo==='CTe')veis[v].cte++;else veis[v].nfs++;
+    if((r.stKey==='ok'||r.stKey==='late')&&r.em&&r.pgto){
+      var d=Math.round((new Date(r.pgto+'T00:00:00')-new Date(r.em+'T00:00:00'))/86400000);
+      if(d>=0){veis[v].pmrS+=d;veis[v].pmrN++;}
+    }
   });
   var vKeys=Object.keys(veis).sort(function(a,b){return veis[b].val-veis[a].val;});
   var tBody='',tVal=0,tPval=0,tCte=0,tNfs=0,tDocs=0;
@@ -2426,6 +2558,7 @@ function renderDashboard(){
     var d=veis[v],n=d.cte+d.nfs,arec=d.val-d.pval;
     var pct=d.val>0?Math.round(d.pval/d.val*100):0;
     var barCol=pct>=80?'#16a34a':pct>=50?'#d97706':'#dc2626';
+    var pmrV=d.pmrN>0?Math.round(d.pmrS/d.pmrN):'-';
     tVal+=d.val;tPval+=d.pval;tCte+=d.cte;tNfs+=d.nfs;tDocs+=n;
     tBody+='<tr style="border-bottom:1px solid #f5f5f4">'
       +'<td style="padding:10px 12px;font-weight:600">'+v+'</td>'
@@ -2435,6 +2568,7 @@ function renderDashboard(){
       +'<td style="padding:10px 12px;text-align:right">'+fR(d.val)+'</td>'
       +'<td style="padding:10px 12px;text-align:right;color:#16a34a">'+fR(d.pval)+'</td>'
       +'<td style="padding:10px 12px;text-align:right;color:'+(arec>0?'#dc2626':'#a8a29e')+'">'+fR(arec)+'</td>'
+      +'<td style="padding:10px 12px;text-align:right;color:'+(pmrV!=='-'&&pmrV>pmr+5?'#d97706':'#78716c')+'">'+pmrV+(pmrV!=='-'?'d':'')+'</td>'
       +'<td style="padding:10px 12px"><div style="display:flex;align-items:center;gap:8px">'
       +'<div class="dash-bar-wrap"><div class="dash-bar-fill" style="width:'+pct+'%;background:'+barCol+'"></div></div>'
       +'<span class="dash-pct">'+pct+'%</span></div></td></tr>';
@@ -2449,19 +2583,17 @@ function renderDashboard(){
     +'<td style="padding:10px 12px;text-align:right">'+fR(tVal)+'</td>'
     +'<td style="padding:10px 12px;text-align:right;color:#16a34a">'+fR(tPval)+'</td>'
     +'<td style="padding:10px 12px;text-align:right;color:#dc2626">'+fR(tVal-tPval)+'</td>'
+    +'<td style="padding:10px 12px;text-align:right">'+pmr+'d</td>'
     +'<td style="padding:10px 12px;font-weight:600">'+tPct+'%</td>';
 
-  // ── Gráfico por veículo (barras SVG horizontais) ──
+  // ── Barras horizontais por veículo ──
   var vW=600,vPL=80,vPR=20,vPT=10,vPB=10;
   var rowH=36,vH=vPT+vPB+vKeys.length*rowH;
   var maxV=veis[vKeys[0]]?veis[vKeys[0]].val:1;
   var vColors2=['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#06b6d4'];
   var svgV='<svg viewBox="0 0 '+vW+' '+vH+'" style="width:100%;height:'+vH+'px" xmlns="http://www.w3.org/2000/svg">';
-  // Legenda topo
-  svgV+='<rect x="'+vPL+'" y="0" width="10" height="10" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" rx="2"/>';
-  svgV+='<text x="'+(vPL+14)+'" y="9" font-size="10" fill="#78716c">Emitido</text>';
-  svgV+='<rect x="'+(vPL+70)+'" y="0" width="10" height="10" fill="#bbf7d0" stroke="#16a34a" stroke-width="1" rx="2"/>';
-  svgV+='<text x="'+(vPL+84)+'" y="9" font-size="10" fill="#78716c">Pago</text>';
+  svgV+='<rect x="'+vPL+'" y="0" width="10" height="10" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" rx="2"/><text x="'+(vPL+14)+'" y="9" font-size="10" fill="#78716c">Emitido</text>';
+  svgV+='<rect x="'+(vPL+70)+'" y="0" width="10" height="10" fill="#bbf7d0" stroke="#16a34a" stroke-width="1" rx="2"/><text x="'+(vPL+84)+'" y="9" font-size="10" fill="#78716c">Recebido</text>';
   vKeys.forEach(function(v,i){
     var d=veis[v];
     var y=vPT+i*rowH+rowH/2;
@@ -2470,144 +2602,36 @@ function renderDashboard(){
     var wPg=Math.round(availW*(d.pval/maxV));
     var col=vColors2[i%vColors2.length];
     svgV+='<text x="'+(vPL-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" font-weight="600" fill="#1c1917">'+v+'</text>';
-    svgV+='<rect x="'+vPL+'" y="'+(y-9)+'" width="'+wEm+'" height="10" fill="'+col+'33" stroke="'+col+'" stroke-width="1" rx="2"/>';
-    svgV+='<rect x="'+vPL+'" y="'+(y+1)+'" width="'+wPg+'" height="8" fill="#bbf7d0" stroke="#16a34a" stroke-width="1" rx="2"/>';
-    svgV+='<text x="'+(vPL+wEm+4)+'" y="'+(y)+'" font-size="9" fill="#78716c">'+fR(d.val)+'</text>';
+    svgV+='<rect x="'+vPL+'" y="'+(y-9)+'" width="'+wEm+'" height="10" fill="'+col+'33" stroke="'+col+'" stroke-width="1" rx="2"><title>'+v+' — Emitido: '+fR(d.val)+'</title></rect>';
+    svgV+='<rect x="'+vPL+'" y="'+(y+1)+'" width="'+wPg+'" height="8" fill="#bbf7d0" stroke="#16a34a" stroke-width="1" rx="2"><title>'+v+' — Recebido: '+fR(d.pval)+'</title></rect>';
+    svgV+='<text x="'+(vPL+wEm+4)+'" y="'+y+'" font-size="9" fill="#78716c">'+fR(d.val)+'</text>';
   });
   svgV+='</svg>';
   document.getElementById('chart-veiculo').innerHTML=svgV;
   document.getElementById('chart-veiculo').style.height=vH+'px';
-
-  // ── KPIs avançados ──
-  var hoje=new Date(); hoje.setHours(0,0,0,0);
-  var somaDiasRec=0,contRec=0,pmr=0;
-  data.forEach(function(r){
-    if(r.pgto&&r.em){
-      var de=new Date(r.em+'T00:00:00'),dp=new Date(r.pgto+'T00:00:00');
-      somaDiasRec+=(dp-de)/(86400000); contRec++;
-    }
-  });
-  pmr=contRec>0?Math.round(somaDiasRec/contRec):0;
-  var inad=data.filter(function(r){return r.stKey==='due';}).reduce(function(a,r){return a+r.val;},0);
-  var inadPct=tval>0?Math.round(inad/tval*100):0;
-  var ticketCte=0,nCte=0,ticketNfs=0,nNfs=0;
-  data.forEach(function(r){
-    if(r.tipo==='CTe'){ticketCte+=r.val;nCte++;}else{ticketNfs+=r.val;nNfs++;}
-  });
-  var el2=document.getElementById('dash-kpis2');
-  if(el2) el2.innerHTML=
-    dkpi('accent','PMR',pmr+' dias','prazo médio de recebimento')+
-    dkpi('danger','Inadimplência',fR(inad),inadPct+'% do faturamento')+
-    dkpi('','Ticket CTe',nCte>0?fR(ticketCte/nCte):'—',nCte+' documentos')+
-    dkpi('','Ticket NFS-e',nNfs>0?fR(ticketNfs/nNfs):'—',nNfs+' documentos');
-
-  // ── Aging de recebíveis ──
-  var buckets=[{lbl:'1–15 dias',min:1,max:15,val:0,n:0},{lbl:'16–30 dias',min:16,max:30,val:0,n:0},{lbl:'31–60 dias',min:31,max:60,val:0,n:0},{lbl:'+60 dias',min:61,max:9999,val:0,n:0}];
-  data.forEach(function(r){
-    if(r.stKey!=='due'||!r.venc)return;
-    var dias=Math.round((hoje-new Date(r.venc+'T00:00:00'))/86400000);
-    if(dias<1)return;
-    buckets.forEach(function(b){if(dias>=b.min&&dias<=b.max){b.val+=r.val;b.n++;}});
-  });
-  var maxAging=Math.max.apply(null,buckets.map(function(b){return b.val;}))||1;
-  var agColors=['#fef3c7','#fed7aa','#fecaca','#fca5a5'];
-  var agBorders=['#d97706','#ea580c','#dc2626','#991b1b'];
-  var agHtml='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">';
-  buckets.forEach(function(b,i){
-    agHtml+='<div style="background:'+agColors[i]+';border:1px solid '+agBorders[i]+';border-radius:10px;padding:14px;text-align:center">'
-      +'<div style="font-size:11px;font-weight:600;color:'+agBorders[i]+';margin-bottom:4px">'+b.lbl+'</div>'
-      +'<div style="font-size:18px;font-weight:700;color:#1c1917">'+fR(b.val)+'</div>'
-      +'<div style="font-size:11px;color:#78716c">'+b.n+' doc(s)</div>'
-      +'</div>';
-  });
-  agHtml+='</div>';
-  // Barra proporcional
-  agHtml+='<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px">';
-  var totalAging=buckets.reduce(function(a,b){return a+b.val;},0)||1;
-  buckets.forEach(function(b,i){
-    var pct=Math.round(b.val/totalAging*100);
-    if(pct>0) agHtml+='<div style="width:'+pct+'%;background:'+agBorders[i]+';transition:width .3s" title="'+b.lbl+': '+pct+'%"></div>';
-  });
-  agHtml+='</div>';
-  var eAging=document.getElementById('chart-aging');
-  if(eAging) eAging.innerHTML=agHtml;
-
-  // ── Funil de recebimento ──
-  var fTotal=data.length,fRecOk=data.filter(function(r){return r.stKey==='ok';}).length;
-  var fRecLate=data.filter(function(r){return r.stKey==='late';}).length;
-  var fAVencer=data.filter(function(r){return r.stKey==='open';}).length;
-  var fVencido=data.filter(function(r){return r.stKey==='due';}).length;
-  var funil=[
-    {lbl:'Emitidos',n:fTotal,cor:'#6366f1',bg:'#e0e7ff'},
-    {lbl:'Pago em dia',n:fRecOk,cor:'#16a34a',bg:'#dcfce7'},
-    {lbl:'Pago c/ atraso',n:fRecLate,cor:'#d97706',bg:'#fef3c7'},
-    {lbl:'A vencer',n:fAVencer,cor:'#2563eb',bg:'#dbeafe'},
-    {lbl:'Vencido',n:fVencido,cor:'#dc2626',bg:'#fee2e2'}
-  ];
-  var funilHtml='<div style="display:flex;flex-direction:column;gap:8px">';
-  funil.forEach(function(f){
-    var pct=fTotal>0?Math.round(f.n/fTotal*100):0;
-    funilHtml+='<div style="display:flex;align-items:center;gap:10px">'
-      +'<div style="width:100px;font-size:11px;color:#78716c;text-align:right;flex-shrink:0">'+f.lbl+'</div>'
-      +'<div style="flex:1;height:24px;background:#f5f5f4;border-radius:4px;overflow:hidden">'
-      +'<div style="height:100%;width:'+pct+'%;background:'+f.bg+';border-right:3px solid '+f.cor+';border-radius:4px;transition:width .4s;display:flex;align-items:center;padding-left:6px">'
-      +'<span style="font-size:11px;font-weight:600;color:'+f.cor+'">'+f.n+'</span>'
-      +'</div></div>'
-      +'<div style="width:36px;font-size:11px;color:#a8a29e;flex-shrink:0">'+pct+'%</div>'
-      +'</div>';
-  });
-  funilHtml+='</div>';
-  var eFunil=document.getElementById('chart-funil');
-  if(eFunil) eFunil.innerHTML=funilHtml;
-
-  // ── Próximos vencimentos (30 dias) ──
-  var daqui30=new Date(hoje); daqui30.setDate(daqui30.getDate()+30);
-  var proxList=data.filter(function(r){
-    if(r.pgto||!r.venc)return false;
-    var dv=new Date(r.venc+'T00:00:00');
-    return dv>=hoje&&dv<=daqui30;
-  }).sort(function(a,b){return a.venc.localeCompare(b.venc);}).slice(0,15);
-  var proxHtml='';
-  if(proxList.length===0){
-    proxHtml='<div style="color:#a8a29e;font-size:13px;text-align:center;padding:20px">Nenhum vencimento nos próximos 30 dias.</div>';
-  } else {
-    proxHtml='<div style="display:flex;flex-direction:column;gap:6px">';
-    proxList.forEach(function(r){
-      var dv=new Date(r.venc+'T00:00:00');
-      var diff=Math.round((dv-hoje)/86400000);
-      var cor=diff===0?'#dc2626':diff<=7?'#d97706':'#2563eb';
-      var dtFmt=r.venc.split('-').reverse().join('/');
-      proxHtml+='<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#fafaf9;border-radius:8px;border-left:3px solid '+cor+'">'
-        +'<div style="font-size:12px;font-weight:700;color:'+cor+';width:70px;flex-shrink:0">'+dtFmt+'</div>'
-        +'<div style="flex:1;font-size:12px;font-weight:600;color:#1c1917">'+(r.doc||'-')+'</div>'
-        +'<div style="font-size:11px;color:#78716c">'+(r.tipo||'-')+'</div>'
-        +'<div style="font-size:13px;font-weight:700;color:#1c1917;text-align:right">'+fR(r.val)+'</div>'
-        +'<div style="font-size:10px;color:'+cor+';width:50px;text-align:right;flex-shrink:0">'+(diff===0?'Hoje':diff+' dia'+(diff>1?'s':''))+'</div>'
-        +'</div>';
-    });
-    proxHtml+='</div>';
-  }
-  var eProx=document.getElementById('dash-proximos');
-  if(eProx) eProx.innerHTML=proxHtml;
-
-  // ── Ticket médio por tipo ──
-  var ticketHtml='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
-  [[ticketCte,nCte,'CTe','#6366f1','#e0e7ff'],[ticketNfs,nNfs,'NFS-e','#0891b2','#cffafe']].forEach(function(t){
-    var avg=t[1]>0?fR(t[0]/t[1]):'—';
-    var maxVal=t[0]||1;
-    ticketHtml+='<div style="background:'+t[4]+';border-radius:10px;padding:16px">'
-      +'<div style="font-size:11px;font-weight:600;color:'+t[3]+';margin-bottom:8px">'+t[2]+'</div>'
-      +'<div style="font-size:22px;font-weight:700;color:#1c1917">'+avg+'</div>'
-      +'<div style="font-size:11px;color:#78716c;margin-top:4px">'+t[1]+' docs · total '+fR(t[0])+'</div>'
-      +'</div>';
-  });
-  ticketHtml+='</div>';
-  var eTkt=document.getElementById('chart-ticket');
-  if(eTkt) eTkt.innerHTML=ticketHtml;
 }
 
 function dkpi(cls,lbl,val,sub){
   return '<div class="card '+cls+'"><div class="card-lbl">'+lbl+'</div><div class="card-val" style="font-size:20px">'+val+'</div><div class="card-sub">'+sub+'</div></div>';
+}
+
+function updateHomeCards(){
+  var tdue=0,topen=0,tok=0,tlate=0;
+  CONS.forEach(function(r){
+    if(r.stKey==='due') tdue++;
+    else if(r.stKey==='open') topen++;
+    else if(r.stKey==='ok') tok++;
+    else if(r.stKey==='late') tlate++;
+  });
+  var el;
+  el=document.getElementById('home-sub-consolidado');
+  if(el) el.textContent=CONS.length+' documentos'+(tdue?' · '+tdue+' vencido(s)':'');
+  el=document.getElementById('home-sub-dashboard');
+  if(el) el.textContent=(tdue?'⚠ '+tdue+' vencido(s)':tok+tlate+' pagos · '+topen+' a vencer');
+  el=document.getElementById('home-sub-oji');
+  if(el) el.textContent=PAG_OJI.length+' lançamentos';
+  el=document.getElementById('home-sub-pdf');
+  if(el) el.textContent=CONS.length+' documentos disponíveis';
 }
 
 
@@ -2615,10 +2639,9 @@ function dkpi(cls,lbl,val,sub){
 var SB_URL = 'https://dvhtasursksfniybiiiy.supabase.co';
 var SB_KEY = 'sb_publishable_ExPE_zDxixTTjYe6H4-17Q_6RYCHoYT';
 var LS_KEY = 'pagamentos_nfs_cte_dados';
-var LS_KEY_ARQ = 'pagamentos_oji_arquivo';
-var PAG_OJI_ARQ = [];
 var _autoSaveTimer = null;
 var _sbOnline = false;
+var _lastSyncHash = null;
 
 // ── API Supabase ──
 function sbHeaders(){
@@ -2692,7 +2715,6 @@ function autoSave(){
       ts: new Date().toISOString(),
       CONS: CONS, PAG_OJI: PAG_OJI, VEICS: VEICS, MC: MC, MO: MO
     }));
-    try{ localStorage.setItem(LS_KEY_ARQ, JSON.stringify(PAG_OJI_ARQ)); }catch(e){}
   } catch(e){ console.warn('localStorage cheio:', e); }
 
   if(!_sbOnline){ setBadge('\u2713 Salvo localmente (offline)', false); return; }
@@ -2701,10 +2723,14 @@ function autoSave(){
   sincronizarSupabase();
 }
 
-var _lastSyncHash = null;
 function sincronizarSupabase(){
-  var currentHash=CONS.length+':'+PAG_OJI.length+':'+(CONS.reduce(function(a,r){return a+r.val;},0)|0);
-  if(currentHash===_lastSyncHash){setBadge('✓ Sem alterações para sincronizar',true);return;}
+  // Evitar sync desnecess\u00E1rio se dados n\u00E3o mudaram
+  var currentHash = CONS.length + ':' + PAG_OJI.length + ':' +
+    (CONS.reduce(function(a,r){return a+r.val;},0)|0);
+  if(currentHash === _lastSyncHash){
+    setBadge('\u2713 Sem altera\u00E7\u00F5es para sincronizar', true);
+    return;
+  }
   var hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   setBadge('\u231B Sincronizando...', true);
 
@@ -2744,6 +2770,7 @@ function sincronizarSupabase(){
   .then(function(){
     var hora2 = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     setBadge('\u2713 Sincronizado \u00e0s ' + hora2 + ' \u2014 ' + CONS.length + ' docs', true);
+    _lastSyncHash = CONS.length + ':' + PAG_OJI.length + ':' + (CONS.reduce(function(a,r){return a+r.val;},0)|0);
     var el=document.getElementById('topbar-count');
     if(el) el.textContent=CONS.length+' documentos';
   })
@@ -2871,7 +2898,6 @@ function restaurarDoLocalStorage(){
     if(payload.MC){MC.length=0;payload.MC.forEach(function(m){MC.push(m);});}
     if(payload.MO){MO.length=0;payload.MO.forEach(function(m){MO.push(m);});}
     CONS.forEach(function(r){var s=calcSt(r.pgto,r.venc);r.stKey=s.key;r.stLbl=s.lbl;});
-    try{ var rawArq=localStorage.getItem(LS_KEY_ARQ); if(rawArq){var arrArq=JSON.parse(rawArq);PAG_OJI_ARQ.length=0;arrArq.forEach(function(r){PAG_OJI_ARQ.push(r);});} }catch(e){}
     var ts=new Date(payload.ts).toLocaleString('pt-BR');
     setBadge('\u2713 Cache local restaurado ('+ts+')', false);
     return true;
@@ -2897,8 +2923,7 @@ function fazerBackup(){
         MC: MC,
         MO: MO,
         FRETE: FRETE,
-        COLETAS: COLETAS,
-        PAG_OJI_ARQ: PAG_OJI_ARQ
+        COLETAS: COLETAS
       };
       var agora = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})
                 + '_' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}).replace(':','-');
@@ -2949,9 +2974,7 @@ function restaurarBackup(input){
       PAG_OJI.length=0; payload.PAG_OJI.forEach(function(r){PAG_OJI.push(r);});
       if(payload.VEICS){VEICS.length=0; payload.VEICS.forEach(function(v){VEICS.push(v);});}
       if(payload.MC){MC.length=0; payload.MC.forEach(function(m){MC.push(m);});}
-      if(payload.MO){MO.length=0; payload.MO.forEach(function(m){MO.push(m);})}
-      if(payload.PAG_OJI_ARQ){PAG_OJI_ARQ.length=0; payload.PAG_OJI_ARQ.forEach(function(r){PAG_OJI_ARQ.push(r);})}
-      try{localStorage.setItem(LS_KEY_ARQ, JSON.stringify(PAG_OJI_ARQ));}catch(e){}
+      if(payload.MO){MO.length=0; payload.MO.forEach(function(m){MO.push(m);});}
 
       // Recalcular status com hoje
       CONS.forEach(function(r){ var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.lbl; });
@@ -3051,6 +3074,7 @@ function fazerLogin(){
       aplicarPerfil('adm');
       document.getElementById('login-bg').style.display = 'none';
       inp.value = '';
+      _iniciarApp();
     } else if(hash === SENHA_CONS){
       _perfilAtual = 'consulta';
       sessionStorage.setItem('auth', hash);
@@ -3058,6 +3082,7 @@ function fazerLogin(){
       aplicarPerfil('consulta');
       document.getElementById('login-bg').style.display = 'none';
       inp.value = '';
+      _iniciarApp();
     } else {
       var err = document.getElementById('login-err');
       err.style.display = 'block';
@@ -3108,11 +3133,9 @@ function verificarLogin(){
   interceptArray(CONS);
   interceptArray(PAG_OJI);
 })();
-// Carregar dados do Supabase (nuvem) ou localStorage (cache)
+
 function _iniciarApp(){
   carregarDados().then(function(){
-    migrarVencTodos();
-    renderArquivoOji();
     af();
     if(typeof rebuildVeicFilter==='function') rebuildVeicFilter();
     if(typeof rebuildOjiMesFilter==='function') rebuildOjiMesFilter();
@@ -3123,97 +3146,12 @@ function _iniciarApp(){
   });
 }
 
-
-
-// ── ARQUIVO OJI ──────────────────────────────────────────
-function arquivarOjiAntigos(){
-  var limite='2026-02-01';
-  var movidos=[],restantes=[];
-  PAG_OJI.forEach(function(r){ if(r.data&&r.data<limite)movidos.push(r); else restantes.push(r); });
-  if(movidos.length===0){alert('Nenhum registro anterior a fevereiro de 2026 encontrado.');return;}
-  if(!confirm('Arquivar '+movidos.length+' pagamentos de 2025 e janeiro/2026?\n\nEles serão removidos da listagem principal mas poderão ser consultados e restaurados a qualquer momento.'))return;
-  movidos.forEach(function(r){PAG_OJI_ARQ.push(r);});
-  PAG_OJI.length=0; restantes.forEach(function(r){PAG_OJI.push(r);});
-  marcarAlteracao();
-  if(typeof rebuildOjiMesFilter==='function') rebuildOjiMesFilter();
-  if(typeof rebuildOjiAnoFilter==='function') rebuildOjiAnoFilter();
-  afOji(); renderArquivoOji();
-  alert('✓ '+movidos.length+' pagamentos arquivados com sucesso.');
-}
-
-function restaurarArquivoOji(idx){
-  var r=PAG_OJI_ARQ[idx]; if(!r) return;
-  PAG_OJI_ARQ.splice(idx,1); PAG_OJI.push(r);
-  marcarAlteracao();
-  if(typeof rebuildOjiMesFilter==='function') rebuildOjiMesFilter();
-  if(typeof rebuildOjiAnoFilter==='function') rebuildOjiAnoFilter();
-  afOji(); renderArquivoOji();
-}
-
-function restaurarTodoArquivoOji(){
-  if(PAG_OJI_ARQ.length===0){alert('Arquivo vazio.');return;}
-  if(!confirm('Restaurar todos os '+PAG_OJI_ARQ.length+' registros arquivados?'))return;
-  PAG_OJI_ARQ.forEach(function(r){PAG_OJI.push(r);}); PAG_OJI_ARQ.length=0;
-  marcarAlteracao();
-  if(typeof rebuildOjiMesFilter==='function') rebuildOjiMesFilter();
-  if(typeof rebuildOjiAnoFilter==='function') rebuildOjiAnoFilter();
-  afOji(); fecharArquivoOji(); alert('✓ Registros restaurados.');
-}
-
-function abrirArquivoOji(){ var m=document.getElementById('modal-arquivo-oji'); if(m){m.style.display='flex';renderArquivoOji();} }
-function fecharArquivoOji(){ var m=document.getElementById('modal-arquivo-oji'); if(m)m.style.display='none'; }
-
-function renderArquivoOji(){
-  var lbl=document.getElementById('arq-oji-count'); if(lbl)lbl.textContent=PAG_OJI_ARQ.length+' registros arquivados';
-  var btn=document.getElementById('btn-ver-arquivo-oji'); if(btn)btn.textContent='📂 Arquivo ('+PAG_OJI_ARQ.length+')';
-  var tb=document.getElementById('tbody-arquivo-oji'); if(!tb)return;
-  if(PAG_OJI_ARQ.length===0){tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:#a8a29e;padding:20px">Arquivo vazio</td></tr>';return;}
-  var sorted=PAG_OJI_ARQ.slice().sort(function(a,b){return (b.data||'').localeCompare(a.data||'');});
-  tb.innerHTML=sorted.map(function(r){
-    var origIdx=PAG_OJI_ARQ.indexOf(r);
-    var cor=r.valor<0?'#dc2626':'#16a34a';
-    var val=(r.valor<0?'- ':'')+fR(Math.abs(r.valor));
-    var dt=r.data?r.data.split('-').reverse().join('/'):'--';
-    return '<tr>'
-      +'<td style="font-weight:600">'+(r.doc||'-')+'</td>'
-      +'<td>'+dt+'</td>'
-      +'<td style="color:'+cor+';font-weight:600">'+val+'</td>'
-      +'<td style="text-align:center"><button class="btn btn-ghost" style="font-size:11px;padding:2px 8px" onclick="restaurarArquivoOji('+origIdx+')">Restaurar</button></td>'
-      +'</tr>';
-  }).join('');
-}
-function updateHomeCards(){
-  var tdue=0,topen=0,tok=0,tlate=0;
-  CONS.forEach(function(r){
-    if(r.stKey==='due')tdue++;else if(r.stKey==='open')topen++;
-    else if(r.stKey==='ok')tok++;else if(r.stKey==='late')tlate++;
-  });
-  var el;
-  el=document.getElementById('home-sub-consolidado');
-  if(el)el.textContent=CONS.length+' documentos'+(tdue?' · '+tdue+' vencido(s)':'');
-  el=document.getElementById('home-sub-dashboard');
-  if(el)el.textContent=tdue?'⚠ '+tdue+' vencido(s)':((tok+tlate)+' recebidos · '+topen+' a vencer');
-  el=document.getElementById('home-sub-oji');
-  if(el)el.textContent=PAG_OJI.length+' lançamentos';
-  el=document.getElementById('home-sub-pdf');
-  if(el)el.textContent=CONS.length+' documentos disponíveis';
-}
+// Carregar dados do Supabase (nuvem) ou localStorage (cache)
 verificarLogin();
 if(document.getElementById('login-bg').style.display === 'none'){
   _iniciarApp();
-} else {
-  var _loginReady = false;
-  document.getElementById('login-bg').addEventListener('transitionend', function t(){
-    if(!_loginReady && document.getElementById('login-bg').style.display==='none'){
-      _loginReady=true;
-      document.getElementById('login-bg').removeEventListener('transitionend',t);
-      _iniciarApp();
-    }
-  });
-  document.getElementById('btn-login').addEventListener('click', function(){
-    setTimeout(function(){ if(document.getElementById('login-bg').style.display==='none' && !_loginReady){ _loginReady=true; _iniciarApp(); } }, 400);
-  });
 }
+// Caso não logado: _iniciarApp() é chamado dentro de fazerLogin() após autenticar
 
 // ═══════════════════════════════════════════════════════════════
 // TABELA DE FRETE — módulo isolado, consulta + cadastro
@@ -3719,39 +3657,5 @@ function imprimirRotasFrete(){
   w.onload = function(){ w.print(); };
 }
 </script>
-
-<!-- MODAL ARQUIVO OJI -->
-<div id="modal-arquivo-oji" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:12px;width:min(680px,95vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-    <div style="padding:16px 20px;border-bottom:1px solid #e7e5e4;display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <div style="font-weight:700;font-size:16px">&#x1F4C2; Arquivo de Pagamentos OJI</div>
-        <div id="arq-oji-count" style="font-size:12px;color:#78716c;margin-top:2px">0 registros arquivados</div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-ghost" style="font-size:12px" onclick="restaurarTodoArquivoOji()">&#x21A9; Restaurar Todos</button>
-        <button onclick="fecharArquivoOji()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#78716c;line-height:1">&times;</button>
-      </div>
-    </div>
-    <div style="overflow-y:auto;flex:1;padding:16px">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead><tr style="border-bottom:2px solid #e7e5e4">
-          <th style="text-align:left;padding:6px 8px;color:#78716c;font-weight:600">N&#xBA; Doc</th>
-          <th style="text-align:left;padding:6px 8px;color:#78716c;font-weight:600">Data Pgto</th>
-          <th style="text-align:left;padding:6px 8px;color:#78716c;font-weight:600">Valor</th>
-          <th style="width:80px"></th>
-        </tr></thead>
-        <tbody id="tbody-arquivo-oji"></tbody>
-      </table>
-    </div>
-    <div style="padding:12px 20px;border-top:1px solid #e7e5e4;font-size:11px;color:#a8a29e;text-align:center">
-      Registros arquivados n&#xE3;o aparecem na listagem principal nem no dashboard. Use "Restaurar" para traz&#xEA;-los de volta.
-    </div>
-  </div>
-</div>
 </body>
 </html>
-
-
-
-
