@@ -34,14 +34,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 /* CARDS MOBILE — Tabela de Frete */
 .frete-card-mobile{background:#fff;border:1px solid #e7e5e4;border-radius:12px;padding:14px 16px;margin-bottom:10px}
-.frete-card-mobile-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.frete-card-mobile-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;cursor:pointer}
 .frete-card-mobile-rota{font-size:16px;font-weight:600;color:#1c1917;line-height:1.3}
 .frete-card-mobile-km{font-size:13px;color:#78716c;white-space:nowrap;flex-shrink:0}
 .frete-card-mobile-valores{display:flex;justify-content:space-between;margin-top:10px;gap:6px}
 .frete-card-mobile-valor{text-align:center;flex:1}
 .frete-card-mobile-lbl{font-size:11px;color:#a8a29e;margin-bottom:2px}
 .frete-card-mobile-num{font-size:15px;font-weight:600;color:#1c1917}
-.frete-card-mobile-num.pickup{color:#16a34a}
+.frete-card-mobile-piso{font-size:10.5px;color:#78716c;margin-top:4px;line-height:1.3}
+.frete-card-mobile-piso b{color:#57534e;font-weight:600}
 .frete-card-mobile-detalhe{margin-top:10px;padding-top:10px;border-top:1px solid #f5f5f4;font-size:13px;color:#2563eb;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer}
 .card-lbl{font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
 .card-val{font-size:26px;font-weight:700;line-height:1;color:#1c1917}
@@ -3466,24 +3467,32 @@ function renderFrete(){
           +'</div></td></tr>';
       }
 
-      // Card mobile equivalente — toque mostra tarifas + piso mínimo (igual
-      // ao resumo do desktop); só o link "Ver detalhes e editar" abre o modal.
-      var valoresMobile =
-        (!veiculo||veiculo==='pickup' ? '<div class="frete-card-mobile-valor"><div class="frete-card-mobile-lbl">Pick-up</div><div class="frete-card-mobile-num">'+valorFreteBadge('pickup', r.km, r.pickup)+'</div></div>' : '')
-        + (!veiculo||veiculo==='truck' ? '<div class="frete-card-mobile-valor"><div class="frete-card-mobile-lbl">Truck</div><div class="frete-card-mobile-num">'+valorFreteBadge('truck', r.km, r.truck)+'</div></div>' : '')
-        + (!veiculo||veiculo==='carreta' ? '<div class="frete-card-mobile-valor"><div class="frete-card-mobile-lbl">Carreta</div><div class="frete-card-mobile-num">'+valorFreteBadge('carreta', r.km, r.carreta)+'</div></div>' : '');
+      // Card mobile equivalente — acordeão: fechado mostra só rota/km/tarifas;
+      // ao tocar, expande (fecha qualquer outra) e mostra o piso mínimo ANTT
+      // empilhado embaixo de cada tarifa (usa o mesmo _rotaExpandidaId do
+      // resumo do desktop, para manter os dois em sincronia).
+      var abertoMobile = _rotaExpandidaId === r.id;
 
-      cardsHtml += '<div class="frete-card-mobile">'
-        +'<div class="frete-card-mobile-head">'
+      function valorMobile(v, lbl){
+        if(veiculo && veiculo!==v) return '';
+        var piso = abertoMobile
+          ? '<div class="frete-card-mobile-piso">Piso mín: <b>'+pisoMinimoTxt(v, r.km)+'</b></div>'
+          : '';
+        return '<div class="frete-card-mobile-valor"><div class="frete-card-mobile-lbl">'+lbl+'</div><div class="frete-card-mobile-num">'+valorFreteBadge(v, r.km, r[v])+'</div>'+piso+'</div>';
+      }
+      var valoresMobile = valorMobile('pickup','Pick-up') + valorMobile('truck','Truck') + valorMobile('carreta','Carreta');
+
+      cardsHtml += '<div class="frete-card-mobile'+(abertoMobile?' aberto':'')+'">'
+        +'<div class="frete-card-mobile-head" onclick="toggleResumoRota(\''+r.id+'\')">'
         +'<div class="frete-card-mobile-rota">'+fmtRota(r)+'</div>'
         +'<div class="frete-card-mobile-km">Km '+(r.km||'\u2014')+'</div>'
         +'</div>'
         +'<div class="frete-card-mobile-valores">'+valoresMobile+'</div>'
-        +'<div style="font-size:11px;color:#78716c;margin-top:8px;padding-top:8px;border-top:1px dashed #e7e5e4">'
-        +'<strong style="color:#1c1917">Piso mínimo ANTT:</strong> Pick-up '+pisoMinimoTxt('pickup', r.km)+' \u00b7 Truck '+pisoMinimoTxt('truck', r.km)+' \u00b7 Carreta '+pisoMinimoTxt('carreta', r.km)
-        +'</div>'
-        +'<div class="frete-card-mobile-detalhe" onclick="abrirModalRota(\''+r.id+'\')">Ver detalhes e editar <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>'
+        + (abertoMobile
+            ? '<div class="frete-card-mobile-detalhe" onclick="abrirModalRota(\''+r.id+'\')">Ver detalhes e editar <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>'
+            : '')
         +'</div>';
+
 
     });
     tb.innerHTML = linhas;
