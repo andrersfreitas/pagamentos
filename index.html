@@ -33,17 +33,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .btn-voltar-home:hover{background:#f5f5f4;border-color:#a8a29e}
 
 /* CARDS MOBILE — Tabela de Frete */
-.frete-card-mobile{background:#fff;border:1px solid #e7e5e4;border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:border-color .15s}
-.frete-card-mobile:active{border-color:#1c1917}
-.frete-card-mobile-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.frete-card-mobile{background:#fff;border:1px solid #e7e5e4;border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.frete-card-mobile-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;cursor:pointer}
 .frete-card-mobile-rota{font-size:16px;font-weight:600;color:#1c1917;line-height:1.3}
 .frete-card-mobile-km{font-size:13px;color:#78716c;white-space:nowrap;flex-shrink:0}
 .frete-card-mobile-valores{display:flex;justify-content:space-between;margin-top:10px;gap:6px}
 .frete-card-mobile-valor{text-align:center;flex:1}
 .frete-card-mobile-lbl{font-size:11px;color:#a8a29e;margin-bottom:2px}
 .frete-card-mobile-num{font-size:15px;font-weight:600;color:#1c1917}
-.frete-card-mobile-num.pickup{color:#16a34a}
-.frete-card-mobile-detalhe{margin-top:10px;padding-top:10px;border-top:1px solid #f5f5f4;font-size:13px;color:#2563eb;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px}
+.frete-card-mobile-piso{font-size:10.5px;color:#78716c;margin-top:4px;line-height:1.3}
+.frete-card-mobile-piso b{color:#57534e;font-weight:600}
+.frete-card-mobile-detalhe{margin-top:10px;padding-top:10px;border-top:1px solid #f5f5f4;font-size:13px;color:#2563eb;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer}
 .card-lbl{font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
 .card-val{font-size:26px;font-weight:700;line-height:1;color:#1c1917}
 .card-sub{font-size:12px;color:#a8a29e;margin-top:4px}
@@ -368,6 +368,7 @@ body.modo-consulta .mtab{pointer-events:none}
   <div class="tab" onclick="showTab('pdf')">&#x1F4C4; Relat&#xF3;rio PDF</div>
   <div class="tab" onclick="showTab('upload')">&#x2B06;&#xFE0F; Importar Dados</div>
   <div class="tab" onclick="showTab('frete')">&#x1F69A; Tabela de Frete</div>
+  <div class="tab" onclick="showTab('piso')">&#x2696;&#xFE0F; Piso ANTT</div>
 </div>
 
 <div class="main">
@@ -408,6 +409,11 @@ body.modo-consulta .mtab{pointer-events:none}
       <div class="home-icon" style="background:#e0f2fe;color:#0891b2">&#x1F69A;</div>
       <div class="home-label">Tabela de Frete</div>
       <div class="home-sub" id="home-sub-frete">Rotas e tarifas</div>
+    </div>
+    <div class="home-card" onclick="showTab('piso')">
+      <div class="home-icon" style="background:#fef9c3;color:#a16207">&#x2696;&#xFE0F;</div>
+      <div class="home-label">Piso ANTT</div>
+      <div class="home-sub" id="home-sub-piso">Piso m&#xED;nimo de frete</div>
     </div>
   </div>
 </div>
@@ -757,6 +763,15 @@ body.modo-consulta .mtab{pointer-events:none}
     <div id="coletas-painel" style="display:contents"></div>
   </div>
 
+  <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:11px;color:#78716c">
+    <span>Valida&#xE7;&#xE3;o vs. piso ANTT:</span>
+    <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#7c3aed;margin-right:4px"></span>&#x2264; piso m&#xED;nimo</span>
+    <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#dc2626;margin-right:4px"></span>&lt; 5% acima do piso</span>
+    <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#b45309;margin-right:4px"></span>5&ndash;15%</span>
+    <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#2563eb;margin-right:4px"></span>15&ndash;25%</span>
+    <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#16a34a;margin-right:4px"></span>&#x2265; 25%</span>
+    <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#a8a29e;margin-right:4px"></span>sem coeficiente cadastrado</span>
+  </div>
   <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
     <input type="text" id="frete-busca" placeholder="&#x1F50D; Buscar origem ou destino..." oninput="filtrarFrete()" style="width:240px">
     <select id="frete-veiculo-filtro" onchange="filtrarFrete()" style="height:34px;padding:0 10px;border:1px solid #d6d3d1;border-radius:8px;font-size:13px;color:#1c1917;background:#fff;outline:none">
@@ -793,6 +808,73 @@ body.modo-consulta .mtab{pointer-events:none}
   </div>
 </div>
 
+<!-- ═══ PISO MÍNIMO ANTT ═══ -->
+<div id="page-piso" class="page">
+  <div class="panel" style="padding:20px 24px">
+    <h2 style="font-size:15px;margin-bottom:4px">Coeficientes ANTT</h2>
+    <p style="font-size:12px;color:#78716c;margin-bottom:16px">Cadastre o CC (custo fixo) e o CCD (R$/km) vigentes na resolu&#xE7;&#xE3;o da ANTT em vigor. Esses valores s&#xE3;o reajustados periodicamente &mdash; atualize aqui sempre que sair uma nova resolu&#xE7;&#xE3;o.</p>
+    <div class="form-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="fg2">
+        <label class="flbl">Truck &middot; 3 eixos &middot; Tabela A</label>
+        <input type="text" id="piso-cc-truck" placeholder="CC (R$ 0,0000)" inputmode="decimal">
+        <input type="text" id="piso-ccd-truck" placeholder="CCD (R$/km 0,0000)" inputmode="decimal" style="margin-top:6px">
+      </div>
+      <div class="fg2">
+        <label class="flbl">Carreta &middot; 5 eixos &middot; Tabela A</label>
+        <input type="text" id="piso-cc-carreta" placeholder="CC (R$ 0,0000)" inputmode="decimal">
+        <input type="text" id="piso-ccd-carreta" placeholder="CCD (R$/km 0,0000)" inputmode="decimal" style="margin-top:6px">
+      </div>
+      <div class="fg2">
+        <label class="flbl">Pick-up &middot; 2 eixos &middot; Tabela C</label>
+        <input type="text" id="piso-cc-pickup" placeholder="CC (R$ 0,0000)" inputmode="decimal">
+        <input type="text" id="piso-ccd-pickup" placeholder="CCD (R$/km 0,0000)" inputmode="decimal" style="margin-top:6px">
+      </div>
+    </div>
+    <div class="smsg" id="msg-piso-coef"></div>
+    <button class="btn btn-dark" onclick="salvarCoefPiso()" id="btn-salvar-coef-piso" style="margin-top:6px">&#x2713; Salvar coeficientes</button>
+  </div>
+
+  <div class="panel" style="padding:20px 24px">
+    <h2 style="font-size:15px;margin-bottom:4px">Calcular piso m&#xED;nimo</h2>
+    <p style="font-size:12px;color:#78716c;margin-bottom:16px">Informe a rota, a dist&#xE2;ncia, o ped&#xE1;gio e o valor cobrado. O ped&#xE1;gio n&#xE3;o entra no c&#xE1;lculo do CCD/CC &mdash; ele &#xE9; somado depois, separadamente, garantindo que o piso seja avaliado corretamente.</p>
+    <div class="form-grid">
+      <div class="fg2">
+        <label class="flbl">Origem</label>
+        <input type="text" id="piso-origem" placeholder="Ex: Piracicaba">
+      </div>
+      <div class="fg2">
+        <label class="flbl">Destino</label>
+        <input type="text" id="piso-destino" placeholder="Ex: Campinas">
+      </div>
+      <div class="fg2">
+        <label class="flbl">Tipo de ve&#xED;culo</label>
+        <select id="piso-veiculo" style="height:36px;padding:0 10px;border:1px solid #d6d3d1;border-radius:8px;font-size:13px;color:#1c1917;background:#fff;outline:none">
+          <option value="truck">Truck (3 eixos &middot; Tabela A)</option>
+          <option value="carreta">Carreta (5 eixos &middot; Tabela A)</option>
+          <option value="pickup">Pick-up (2 eixos &middot; Tabela C)</option>
+        </select>
+      </div>
+      <div class="fg2">
+        <label class="flbl">Dist&#xE2;ncia (km)</label>
+        <input type="number" id="piso-km" placeholder="Ex: 120" min="0">
+      </div>
+      <div class="fg2">
+        <label class="flbl">Ped&#xE1;gio (R$)</label>
+        <input type="text" id="piso-pedagio" placeholder="R$ 0,00" inputmode="decimal">
+      </div>
+      <div class="fg2">
+        <label class="flbl">Frete cobrado (R$)</label>
+        <input type="text" id="piso-cobrado" placeholder="R$ 0,00" inputmode="decimal">
+      </div>
+    </div>
+    <button class="btn btn-dark" onclick="calcularPiso()">&#x1F4D0; Calcular piso m&#xED;nimo</button>
+    <div id="piso-resultado" style="margin-top:18px;display:none">
+      <div class="cards" id="piso-resultado-cards"></div>
+      <div class="smsg" id="piso-resultado-msg"></div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL ROTA DE FRETE -->
 <div class="modal-bg" id="modal-rota-bg" style="display:none" onclick="if(event.target===this)fecharModalRota()">
   <div class="modal" style="max-width:480px">
@@ -812,7 +894,12 @@ body.modo-consulta .mtab{pointer-events:none}
         </div>
         <div class="fg2" style="grid-column:1/-1">
           <label class="flbl">KM</label>
-          <input type="number" id="rota-km" placeholder="Ex: 71" min="0">
+          <input type="number" id="rota-km" placeholder="Ex: 71" min="0" oninput="recalcularTarifasSugeridas()">
+        </div>
+        <div class="fg2" id="rota-margem-wrap" style="grid-column:1/-1">
+          <label class="flbl">Margem sobre o piso ANTT (%)</label>
+          <input type="number" id="rota-margem" placeholder="Ex: 15" min="0" step="0.01" oninput="recalcularTarifasSugeridas()">
+          <span style="font-size:11px;color:#a8a29e;margin-top:4px;display:block">Calcula Pick-up/Truck/Carreta como piso ANTT + esta margem. Os valores continuam edit&#xE1;veis &#x2014; confira antes de salvar. Vale s&#xF3; para esta rota nova.</span>
         </div>
         <div class="fg2">
           <label class="flbl">Pick-up (R$) *</label>
@@ -915,7 +1002,7 @@ CONS.forEach(function(r){ var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.
 
 // ── TABS ──
 function showTab(name){
-  var names=['home','dashboard','consolidado','oji','pdf','upload','frete'];
+  var names=['home','dashboard','consolidado','oji','pdf','upload','frete','piso'];
   document.querySelectorAll('.tab').forEach(function(t,i){ t.classList.toggle('active',names[i]===name); });
   document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
   var pagina = document.getElementById('page-'+name);
@@ -923,6 +1010,7 @@ function showTab(name){
   if(name==='oji') afOji();
   if(name==='dashboard') renderDashboard();
   if(name==='frete') initFrete();
+  if(name==='piso') initPiso();
   closeAllMS();
 
   // Injetar botão "Voltar à Home" no topo de qualquer página que não seja a própria Home
@@ -2657,6 +2745,37 @@ function sbFetch(path, opts){
   return fetch(SB_URL + '/rest/v1/' + path, Object.assign({headers: sbHeaders()}, opts));
 }
 
+// Busca TODAS as linhas de uma consulta, paginando com o header Range do
+// PostgREST. Isso evita que um limite de "Max Rows" configurado no painel
+// do Supabase (que trunca silenciosamente qualquer consulta, mesmo com
+// ?limit= maior) faça o sistema carregar menos registros do que existem.
+function sbFetchAll(path){
+  var all = [];
+  var TAM_PAGINA = 1000;
+  function buscarPagina(offset){
+    return sbFetch(path, {
+      headers: Object.assign({}, sbHeaders(), {
+        'Range-Unit': 'items',
+        'Range': offset+'-'+(offset+TAM_PAGINA-1),
+        'Prefer': 'count=exact'
+      })
+    })
+    .then(function(r){
+      if(!r.ok && r.status!==206) throw new Error('HTTP '+r.status);
+      var contentRange = r.headers.get('content-range') || '';
+      var total = parseInt(contentRange.split('/')[1], 10);
+      return r.json().then(function(rows){
+        all = all.concat(rows);
+        if(rows.length>0 && !isNaN(total) && all.length<total){
+          return buscarPagina(offset+rows.length);
+        }
+        return all;
+      });
+    });
+  }
+  return buscarPagina(0);
+}
+
 // Testar conexão ao Supabase
 function testarConexao(){
   return sbFetch('consolidado?limit=1')
@@ -2790,12 +2909,11 @@ function carregarDados(){
       return restaurarDoLocalStorage();
     }
 
-    // Carregar CONS do Supabase
-    return sbFetch('consolidado?select=*&order=em.asc&limit=2000')
-    .then(function(r){ return r.json(); })
+    // Carregar CONS do Supabase (paginado — traz TODOS os registros, mesmo
+    // que o projeto tenha um "Max Rows" configurado abaixo do total real)
+    return sbFetchAll('consolidado?select=*&order=em.asc')
     .then(function(cons_data){
-      return sbFetch('pagamentos_oji?select=*&order=data.desc&limit=2000')
-      .then(function(r){ return r.json(); })
+      return sbFetchAll('pagamentos_oji?select=*&order=data.desc')
       .then(function(pag_data){
         if(!Array.isArray(cons_data) || !Array.isArray(pag_data)){
           throw new Error('Dados inválidos do Supabase');
@@ -2810,26 +2928,36 @@ function carregarDados(){
         }
 
         // ── PROTEÇÃO CONTRA PERDA SILENCIOSA DE DADOS ──
-        // Se a nuvem trouxer MENOS documentos que o último cache local confiável,
-        // avisar e perguntar antes de substituir — pode ser uma sincronização
-        // incompleta ou instabilidade do Supabase, não uma exclusão real.
+        // Se a nuvem trouxer MENOS documentos/lançamentos que o último cache
+        // local confiável, avisar e perguntar antes de substituir — pode ser
+        // uma sincronização incompleta ou instabilidade do Supabase, não uma
+        // exclusão real. Cobre tanto o Consolidado (CONS) quanto os
+        // Pagamentos Oji (PAG_OJI).
         try{
           var cacheRaw = localStorage.getItem(LS_KEY);
           if(cacheRaw){
             var cachePayload = JSON.parse(cacheRaw);
-            var qtdCache = (cachePayload.CONS||[]).length;
-            var qtdNuvem = cons_data.length;
-            if(qtdCache > 0 && qtdNuvem < qtdCache){
+            var avisos = [];
+            var qtdCacheCons = (cachePayload.CONS||[]).length;
+            if(qtdCacheCons > 0 && cons_data.length < qtdCacheCons){
+              avisos.push({rotulo:'documentos (Consolidado)', nuvem:cons_data.length, cache:qtdCacheCons});
+            }
+            var qtdCachePag = (cachePayload.PAG_OJI||[]).length;
+            if(qtdCachePag > 0 && pag_data.length < qtdCachePag){
+              avisos.push({rotulo:'lan\u00e7amentos (Pagamentos Oji)', nuvem:pag_data.length, cache:qtdCachePag});
+            }
+            if(avisos.length){
               var aceitar = confirm(
                 '\u26A0 ATEN\u00c7\u00c3O \u2014 poss\u00edvel perda de dados detectada!\n\n'
-                + 'A nuvem (Supabase) tem ' + qtdNuvem + ' documentos.\n'
-                + 'O \u00faltimo cache salvo neste dispositivo tinha ' + qtdCache + ' documentos.\n\n'
-                + 'Isso pode indicar uma falha de sincroniza\u00e7\u00e3o, n\u00e3o uma exclus\u00e3o real.\n\n'
-                + 'Clique OK para usar os dados da NUVEM (' + qtdNuvem + ' docs) mesmo assim.\n'
-                + 'Clique CANCELAR para manter os dados locais (' + qtdCache + ' docs) e N\u00c3O sincronizar agora.'
+                + avisos.map(function(a){
+                    return 'A nuvem (Supabase) tem ' + a.nuvem + ' ' + a.rotulo + ', mas o \u00faltimo cache salvo neste dispositivo tinha ' + a.cache + '.';
+                  }).join('\n')
+                + '\n\nIsso pode indicar uma falha de sincroniza\u00e7\u00e3o, n\u00e3o uma exclus\u00e3o real.\n\n'
+                + 'Clique OK para usar os dados da NUVEM mesmo assim.\n'
+                + 'Clique CANCELAR para manter os dados locais e N\u00c3O sincronizar agora.'
               );
               if(!aceitar){
-                setBadge('\u26A0 Usando cache local (' + qtdCache + ' docs) \u2014 nuvem tinha menos documentos', false);
+                setBadge('\u26A0 Usando cache local \u2014 nuvem tinha menos registros', false);
                 restaurarDoLocalStorage();
                 return false;
               }
@@ -3168,7 +3296,7 @@ var _rotaEditId = null; // uuid da rota em edição, null = nova
 function fmtRota(r){ return (r.origem||'')+' \u21c4 '+(r.destino||''); }
 
 function initFrete(){
-  carregarFrete().then(function(){
+  Promise.all([carregarCoefPiso(), carregarFrete()]).then(function(){
     filtrarFrete();
     renderCardsFrete();
   });
@@ -3212,6 +3340,47 @@ function carregarFrete(){
 function renderCardsFrete(){
   document.getElementById('cards-frete').innerHTML =
     '<div class="card"><div class="card-lbl">Total de rotas cadastradas</div><div class="card-val">'+FRETE.length+'</div><div class="card-sub">consulta de tarifas</div></div>';
+}
+
+// Validação da tarifa cadastrada contra o piso mínimo ANTT (aba "Piso ANTT").
+// Faixas por margem acima do piso: ≤0% roxo (no piso ou abaixo) · <5% vermelho ·
+// 5–15% amarelo · 15–25% azul · ≥25% verde.
+function margemPisoCor(margem){
+  if(margem<=0) return {cor:'#7c3aed', bg:'#ede9fe'};
+  if(margem<5)  return {cor:'#dc2626', bg:'#fee2e2'};
+  if(margem<15) return {cor:'#b45309', bg:'#fef9c3'};
+  if(margem<25) return {cor:'#2563eb', bg:'#dbeafe'};
+  return {cor:'#16a34a', bg:'#dcfce7'};
+}
+
+function pisoMinimoRota(v, km){
+  var coef = PISO_COEF[v];
+  if(!coef || coef.cc==null || coef.ccd==null || km==null || km==='' || isNaN(km)) return null;
+  var piso = km*coef.ccd + coef.cc;
+  return piso>0 ? piso : null;
+}
+
+function pisoValidacaoRota(v, km, valor){
+  var piso = pisoMinimoRota(v, km);
+  if(piso==null) return null;
+  var margem = (valor-piso)/piso*100;
+  var c = margemPisoCor(margem);
+  return {piso:piso, margem:margem, cor:c.cor, bg:c.bg};
+}
+
+function valorFreteBadge(v, km, valor){
+  var val = pisoValidacaoRota(v, km, valor);
+  if(!val){
+    return '<span style="color:#78716c" title="Cadastre o CC/CCD deste veículo em \'Piso ANTT\' para validar esta tarifa">'+fR(valor)+'</span>';
+  }
+  var sinal = val.margem>=0 ? '+' : '';
+  var titulo = 'Piso ANTT: '+fR(val.piso)+' · '+sinal+val.margem.toFixed(1)+'% sobre o piso';
+  return '<span title="'+titulo+'" style="color:'+val.cor+';background:'+val.bg+';padding:2px 7px;border-radius:5px;font-weight:600">'+fR(valor)+'</span>';
+}
+
+function pisoMinimoTxt(v, km){
+  var piso = pisoMinimoRota(v, km);
+  return piso==null ? '—' : fR(piso);
 }
 
 function filtrarFrete(){
@@ -3273,7 +3442,7 @@ function renderFrete(){
     _freteFiltrado.forEach(function(r){
       function celulaVeiculo(v){
         var mostrar = !veiculo || veiculo===v;
-        return mostrar ? '<td style="text-align:right;color:#16a34a;font-weight:500">'+fR(r[v])+'</td>' : '';
+        return mostrar ? '<td style="text-align:right;font-weight:500">'+valorFreteBadge(v, r.km, r[v])+'</td>' : '';
       }
       linhas += '<tr class="frete-row" onclick="toggleResumoRota(\''+r.id+'\')" style="cursor:pointer">'
         +'<td style="font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+fmtRota(r)+'">'+fmtRota(r)+'</td>'
@@ -3288,26 +3457,43 @@ function renderFrete(){
         linhas += '<tr class="frete-resumo-row"><td colspan="'+colspan+'" style="padding:0">'
           +'<div onclick="abrirModalRota(\''+r.id+'\')" style="cursor:pointer;background:#fafaf9;border-top:1px solid #e7e5e4;border-bottom:1px solid #e7e5e4;padding:12px 16px;display:flex;gap:24px;flex-wrap:wrap;align-items:center">'
           +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">KM:</strong> '+(r.km||'\u2014')+'</div>'
-          +'<div style="font-size:11px;color:#78716c"><strong style="color:#16a34a">Pick-up:</strong> '+fR(r.pickup)+'</div>'
-          +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">Truck:</strong> '+fR(r.truck)+'</div>'
-          +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">Carreta:</strong> '+fR(r.carreta)+'</div>'
+          +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">Pick-up:</strong> '+valorFreteBadge('pickup', r.km, r.pickup)+'</div>'
+          +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">Truck:</strong> '+valorFreteBadge('truck', r.km, r.truck)+'</div>'
+          +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">Carreta:</strong> '+valorFreteBadge('carreta', r.km, r.carreta)+'</div>'
           +'<div style="margin-left:auto;font-size:11px;color:#2563eb;font-weight:600;display:flex;align-items:center;gap:4px">Ver detalhes e editar <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>'
+          +'<div style="flex-basis:100%;font-size:11px;color:#78716c;padding-top:6px;border-top:1px dashed #e7e5e4;margin-top:2px">'
+          +'<strong style="color:#1c1917">Piso mínimo ANTT:</strong> Pick-up '+pisoMinimoTxt('pickup', r.km)+' &middot; Truck '+pisoMinimoTxt('truck', r.km)+' &middot; Carreta '+pisoMinimoTxt('carreta', r.km)
+          +'</div>'
           +'</div></td></tr>';
       }
 
-      // Card mobile equivalente — KM já visível, toque abre direto o modal completo
-      var valoresMobile =
-        (!veiculo||veiculo==='pickup' ? '<div class="frete-card-mobile-valor"><div class="frete-card-mobile-lbl">Pick-up</div><div class="frete-card-mobile-num pickup">'+fR(r.pickup)+'</div></div>' : '')
-        + (!veiculo||veiculo==='truck' ? '<div class="frete-card-mobile-valor"><div class="frete-card-mobile-lbl">Truck</div><div class="frete-card-mobile-num">'+fR(r.truck)+'</div></div>' : '')
-        + (!veiculo||veiculo==='carreta' ? '<div class="frete-card-mobile-valor"><div class="frete-card-mobile-lbl">Carreta</div><div class="frete-card-mobile-num">'+fR(r.carreta)+'</div></div>' : '');
+      // Card mobile equivalente — acordeão: fechado mostra só rota/km/tarifas;
+      // ao tocar, expande (fecha qualquer outra) e mostra o piso mínimo ANTT
+      // empilhado embaixo de cada tarifa (usa o mesmo _rotaExpandidaId do
+      // resumo do desktop, para manter os dois em sincronia).
+      var abertoMobile = _rotaExpandidaId === r.id;
 
-      cardsHtml += '<div class="frete-card-mobile" onclick="abrirModalRota(\''+r.id+'\')">'
-        +'<div class="frete-card-mobile-head">'
+      function valorMobile(v, lbl){
+        if(veiculo && veiculo!==v) return '';
+        var piso = abertoMobile
+          ? '<div class="frete-card-mobile-piso">Piso mín: <b>'+pisoMinimoTxt(v, r.km)+'</b></div>'
+          : '';
+        return '<div class="frete-card-mobile-valor"><div class="frete-card-mobile-lbl">'+lbl+'</div><div class="frete-card-mobile-num">'+valorFreteBadge(v, r.km, r[v])+'</div>'+piso+'</div>';
+      }
+      var valoresMobile = valorMobile('pickup','Pick-up') + valorMobile('truck','Truck') + valorMobile('carreta','Carreta');
+
+      cardsHtml += '<div class="frete-card-mobile'+(abertoMobile?' aberto':'')+'">'
+        +'<div class="frete-card-mobile-head" onclick="toggleResumoRota(\''+r.id+'\')">'
         +'<div class="frete-card-mobile-rota">'+fmtRota(r)+'</div>'
         +'<div class="frete-card-mobile-km">Km '+(r.km||'\u2014')+'</div>'
         +'</div>'
         +'<div class="frete-card-mobile-valores">'+valoresMobile+'</div>'
+        + (abertoMobile
+            ? '<div class="frete-card-mobile-detalhe" onclick="abrirModalRota(\''+r.id+'\')">Ver detalhes e editar <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>'
+            : '')
         +'</div>';
+
+
     });
     tb.innerHTML = linhas;
     cardsMobile.innerHTML = cardsHtml;
@@ -3318,6 +3504,24 @@ function renderFrete(){
 function toggleResumoRota(id){
   _rotaExpandidaId = (_rotaExpandidaId === id) ? null : id;
   renderFrete();
+}
+
+// Sugere Pick-up/Truck/Carreta a partir do piso ANTT + margem informada.
+// Só se aplica ao cadastro de rota NOVA (não mexe em rota em edição) e não
+// é persistido — é só um atalho de preenchimento, o usuário confere e salva
+// os valores finais como sempre.
+function recalcularTarifasSugeridas(){
+  if(_rotaEditId) return;
+  var km = parseInt(document.getElementById('rota-km').value, 10);
+  if(isNaN(km) || km<0) return;
+  var margemStr = document.getElementById('rota-margem').value;
+  var margem = margemStr==='' ? 0 : parseFloat(String(margemStr).replace(',','.'));
+  if(isNaN(margem)) return;
+  var fator = 1 + margem/100;
+  ['pickup','truck','carreta'].forEach(function(v){
+    var piso = pisoMinimoRota(v, km);
+    if(piso!=null) document.getElementById('rota-'+v).value = fmtMoedaPiso(piso*fator, 2);
+  });
 }
 
 function abrirModalRota(id){
@@ -3331,6 +3535,8 @@ function abrirModalRota(id){
   document.getElementById('rota-pickup').value  = r ? 'R$ '+r.pickup.toFixed(2).replace('.',',')  : '';
   document.getElementById('rota-truck').value   = r ? 'R$ '+r.truck.toFixed(2).replace('.',',')   : '';
   document.getElementById('rota-carreta').value = r ? 'R$ '+r.carreta.toFixed(2).replace('.',',') : '';
+  document.getElementById('rota-margem').value = '';
+  document.getElementById('rota-margem-wrap').style.display = r ? 'none' : '';
   document.getElementById('msg-rota').style.display='none';
   var btnExcluir = document.getElementById('btn-excluir-rota-modal');
   btnExcluir.style.display = (r && isADM) ? '' : 'none';
@@ -3656,6 +3862,216 @@ function imprimirRotasFrete(){
   w.document.close();
   w.onload = function(){ w.print(); };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// PISO MÍNIMO ANTT — módulo isolado, cadastro de coeficientes
+// (CC/CCD por veículo) + calculadora de piso mínimo de frete.
+// Guarda os coeficientes em localStorage porque são reajustados
+// por resolução da ANTT: quem mantém o valor correto é o usuário.
+// ═══════════════════════════════════════════════════════════════
+var PISO_COEF = {truck:{cc:null,ccd:null}, carreta:{cc:null,ccd:null}, pickup:{cc:null,ccd:null}};
+var PISO_TABELA = {truck:'A', carreta:'A', pickup:'C'};
+var PISO_EIXOS  = {truck:3, carreta:5, pickup:2};
+
+function initPiso(){
+  carregarCoefPiso();
+  var isADM = !document.body.classList.contains('modo-consulta');
+  var btn = document.getElementById('btn-salvar-coef-piso');
+  if(btn) btn.style.display = isADM ? '' : 'none';
+}
+
+// Coeficientes ANTT — sincronizados com o Supabase (tabela antt_coeficientes)
+// para funcionar igual em qualquer dispositivo, com fallback em cache local
+// quando estiver offline. Mesma estratégia segura da tabela_frete/coletas_adicionais.
+function carregarCoefPiso(){
+  if(!_sbOnline){
+    try{
+      var cached = localStorage.getItem('antt_coef_cache');
+      if(cached) PISO_COEF = JSON.parse(cached);
+    }catch(e){}
+    preencherCamposCoefPiso();
+    return Promise.resolve();
+  }
+  return sbFetch('antt_coeficientes?select=*')
+  .then(function(r){
+    if(!r.ok) throw new Error('Falha ao buscar antt_coeficientes (HTTP '+r.status+')');
+    return r.json();
+  })
+  .then(function(rows){
+    var daNuvem = {};
+    rows.forEach(function(r){ daNuvem[r.veiculo] = {cc:parseFloat(r.cc), ccd:parseFloat(r.ccd)}; });
+
+    var cacheLocal = {};
+    try{ cacheLocal = JSON.parse(localStorage.getItem('antt_coef_cache')) || {}; }catch(e){}
+
+    // Se algum veículo ainda não está na nuvem (ex: foi salvo antes de a
+    // sincronização com o Supabase existir), usa o valor do cache local
+    // deste navegador em vez de sobrescrever com vazio, e migra esse valor
+    // para a nuvem automaticamente — assim nada que já estava salvo se perde.
+    var novo = {truck:{cc:null,ccd:null}, carreta:{cc:null,ccd:null}, pickup:{cc:null,ccd:null}};
+    var faltamNaNuvem = [];
+    ['truck','carreta','pickup'].forEach(function(v){
+      if(daNuvem[v]){
+        novo[v] = daNuvem[v];
+      } else if(cacheLocal[v] && cacheLocal[v].cc!=null && cacheLocal[v].ccd!=null){
+        novo[v] = cacheLocal[v];
+        faltamNaNuvem.push(v);
+      }
+    });
+
+    PISO_COEF = novo;
+    try{ localStorage.setItem('antt_coef_cache', JSON.stringify(PISO_COEF)); }catch(e){}
+
+    if(faltamNaNuvem.length){
+      upsertCoefPisoSupabase(novo).catch(function(e){
+        console.warn('Erro ao migrar coeficientes ANTT do cache local para o Supabase:', e);
+      });
+    }
+  })
+  .catch(function(e){
+    console.warn('Erro ao carregar antt_coeficientes, usando cache:', e);
+    try{
+      var cached = localStorage.getItem('antt_coef_cache');
+      if(cached) PISO_COEF = JSON.parse(cached);
+    }catch(e2){}
+  })
+  .then(preencherCamposCoefPiso);
+}
+
+function upsertCoefPisoSupabase(coef){
+  var payload = ['truck','carreta','pickup'].map(function(v){
+    return {veiculo:v, cc:coef[v].cc, ccd:coef[v].ccd};
+  });
+  return sbFetch('antt_coeficientes', {
+    method:'POST',
+    headers: Object.assign({}, sbHeaders(), {'Prefer':'resolution=merge-duplicates,return=representation'}),
+    body: JSON.stringify(payload)
+  })
+  .then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  });
+}
+
+function preencherCamposCoefPiso(){
+  ['truck','carreta','pickup'].forEach(function(v){
+    var coef = PISO_COEF[v] || {};
+    document.getElementById('piso-cc-'+v).value  = (coef.cc!=null)  ? fmtMoedaPiso(coef.cc, 4)  : '';
+    document.getElementById('piso-ccd-'+v).value = (coef.ccd!=null) ? fmtMoedaPiso(coef.ccd, 4) : '';
+  });
+}
+
+function fmtMoedaPiso(n, casas){
+  casas = casas || 2;
+  return 'R$ '+n.toFixed(casas).replace('.',',').replace(/(\d)(?=(\d{3})+,)/g, '$1.');
+}
+
+function salvarCoefPiso(){
+  var msg = document.getElementById('msg-piso-coef');
+  var novo = {};
+  var ok = true;
+  ['truck','carreta','pickup'].forEach(function(v){
+    var cc  = parseValFrete(document.getElementById('piso-cc-'+v).value);
+    var ccd = parseValFrete(document.getElementById('piso-ccd-'+v).value);
+    if(cc===null || ccd===null) ok=false;
+    novo[v] = {cc:cc, ccd:ccd};
+  });
+  if(!ok){
+    msg.className='smsg msg-err'; msg.style.display='block';
+    msg.textContent='Preencha o CC e o CCD de todos os veículos antes de salvar.';
+    return;
+  }
+
+  var btn = document.getElementById('btn-salvar-coef-piso');
+  if(btn){ btn.textContent='Salvando...'; btn.disabled=true; }
+
+  upsertCoefPisoSupabase(novo)
+  .then(function(){
+    PISO_COEF = novo;
+    try{ localStorage.setItem('antt_coef_cache', JSON.stringify(PISO_COEF)); }catch(e){}
+    msg.className='smsg msg-ok'; msg.style.display='block';
+    msg.textContent='Coeficientes salvos. Já disponíveis em qualquer dispositivo.';
+  })
+  .catch(function(e){
+    console.error('Erro ao salvar antt_coeficientes:', e);
+    msg.className='smsg msg-err'; msg.style.display='block';
+    msg.textContent='Erro ao salvar no servidor. Verifique sua conexão e tente novamente.';
+  })
+  .then(function(){
+    if(btn){ btn.textContent='✓ Salvar coeficientes'; btn.disabled=false; }
+  });
+}
+
+function calcularPiso(){
+  var veiculo  = document.getElementById('piso-veiculo').value;
+  var km       = parseFloat(document.getElementById('piso-km').value);
+  var pedagio  = parseValFrete(document.getElementById('piso-pedagio').value) || 0;
+  var cobrado  = parseValFrete(document.getElementById('piso-cobrado').value);
+  var coef     = PISO_COEF[veiculo];
+  var resultado = document.getElementById('piso-resultado');
+  var cards     = document.getElementById('piso-resultado-cards');
+  var msg       = document.getElementById('piso-resultado-msg');
+
+  resultado.style.display='block';
+  cards.innerHTML='';
+
+  if(!coef || coef.cc==null || coef.ccd==null){
+    msg.className='smsg msg-err'; msg.style.display='block';
+    msg.textContent='Cadastre o CC e o CCD deste veículo em "Coeficientes ANTT" antes de calcular.';
+    return;
+  }
+  if(isNaN(km) || km<0){
+    msg.className='smsg msg-err'; msg.style.display='block';
+    msg.textContent='Informe uma distância (km) válida.';
+    return;
+  }
+
+  var pisoSemPedagio = km*coef.ccd + coef.cc;
+  var pisoTotal = pisoSemPedagio + pedagio;
+
+  cards.innerHTML =
+    mkC('accent','Tabela usada','Tabela '+PISO_TABELA[veiculo], PISO_EIXOS[veiculo]+' eixos')
+    + mkC('','Piso sem pedágio', fR(pisoSemPedagio), 'distância × CCD + CC')
+    + mkC('','Piso mínimo total', fR(pisoTotal), 'piso + pedágio ('+fR(pedagio)+')');
+
+  if(cobrado===null){
+    msg.className='smsg'; msg.style.cssText='display:block;background:#f5f5f4;color:#57534e;margin-top:14px';
+    msg.textContent='Informe o valor do frete cobrado para comparar com o piso mínimo.';
+  } else if(cobrado + 1e-9 >= pisoTotal){
+    msg.className='smsg msg-ok'; msg.style.cssText='display:block;margin-top:14px';
+    msg.textContent='Frete cobrado ('+fR(cobrado)+') está ACIMA ou igual ao piso mínimo ('+fR(pisoTotal)+'). Diferença: +'+fR(cobrado-pisoTotal)+'.';
+  } else {
+    msg.className='smsg msg-err'; msg.style.cssText='display:block;margin-top:14px';
+    msg.textContent='Frete cobrado ('+fR(cobrado)+') está ABAIXO do piso mínimo ('+fR(pisoTotal)+'). Faltam '+fR(pisoTotal-cobrado)+' para atingir o piso.';
+  }
+}
+
+// Máscara de moeda para os campos de coeficientes (4 casas decimais, conforme
+// publicado nas resoluções da ANTT) e da calculadora de piso (2 casas, R$).
+(function(){
+  function aplicarMascara(input, casas){
+    input.addEventListener('input', function(){
+      var digits = input.value.replace(/\D/g,'');
+      if(!digits){ input.value=''; return; }
+      var num = (parseInt(digits,10)/Math.pow(10,casas)).toFixed(casas);
+      input.value = 'R$ ' + num.replace('.', ',').replace(/(\d)(?=(\d{3})+,)/g, '$1.');
+    });
+  }
+  var idsCoef  = ['piso-cc-truck','piso-ccd-truck','piso-cc-carreta','piso-ccd-carreta','piso-cc-pickup','piso-ccd-pickup'];
+  var idsValor = ['piso-pedagio','piso-cobrado'];
+  function iniciar(){
+    idsCoef.forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) aplicarMascara(el, 4);
+    });
+    idsValor.forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) aplicarMascara(el, 2);
+    });
+  }
+  document.addEventListener('DOMContentLoaded', iniciar);
+  setTimeout(iniciar, 0);
+})();
 </script>
 </body>
 </html>
