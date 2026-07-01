@@ -892,9 +892,13 @@ body.modo-consulta .mtab{pointer-events:none}
           <label class="flbl">Destino *</label>
           <input type="text" id="rota-destino" placeholder="Ex: Campinas">
         </div>
-        <div class="fg2" style="grid-column:1/-1">
+        <div class="fg2">
           <label class="flbl">KM</label>
           <input type="number" id="rota-km" placeholder="Ex: 71" min="0" oninput="recalcularTarifasSugeridas()">
+        </div>
+        <div class="fg2">
+          <label class="flbl">Ped&#xE1;gio (R$)</label>
+          <input type="text" id="rota-pedagio" placeholder="R$ 0,00" inputmode="decimal">
         </div>
         <div class="fg2" id="rota-margem-wrap" style="grid-column:1/-1">
           <label class="flbl">Margem sobre o piso ANTT (%)</label>
@@ -3324,6 +3328,7 @@ function carregarFrete(){
   .then(function(rows){
     FRETE = rows.map(function(r){
       return {id:r.id, origem:r.origem, destino:r.destino, km:r.km,
+              pedagio:(r.pedagio!=null ? parseFloat(r.pedagio) : null),
               pickup:parseFloat(r.pickup), truck:parseFloat(r.truck), carreta:parseFloat(r.carreta)};
     });
     try{ localStorage.setItem('tabela_frete_cache', JSON.stringify(FRETE)); }catch(e){}
@@ -3353,6 +3358,9 @@ function margemPisoCor(margem){
   return {cor:'#16a34a', bg:'#dcfce7'};
 }
 
+// Piso mínimo da rota = km×CCD + CC, sem pedágio. Decisão do usuário: o
+// pedágio cadastrado por rota é só informativo (exibido ao lado da rota) e
+// NÃO deve entrar nesse cálculo — não adicionar pedágio aqui.
 function pisoMinimoRota(v, km){
   var coef = PISO_COEF[v];
   if(!coef || coef.cc==null || coef.ccd==null || km==null || km==='' || isNaN(km)) return null;
@@ -3445,7 +3453,10 @@ function renderFrete(){
         return mostrar ? '<td style="text-align:right;font-weight:500">'+valorFreteBadge(v, r.km, r[v])+'</td>' : '';
       }
       linhas += '<tr class="frete-row" onclick="toggleResumoRota(\''+r.id+'\')" style="cursor:pointer">'
-        +'<td style="font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+fmtRota(r)+'">'+fmtRota(r)+'</td>'
+        +'<td style="max-width:280px">'
+        +'<div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+fmtRota(r)+'">'+fmtRota(r)+'</div>'
+        +'<div style="font-size:11px;margin-top:2px;color:'+(r.pedagio!=null?'#78716c':'#a8a29e')+'">&#x1F6E3;&#xFE0F; '+(r.pedagio!=null ? 'Pedágio: '+fR(r.pedagio) : 'Sem pedágio cadastrado')+'</div>'
+        +'</td>'
         +celulaVeiculo('pickup')
         +celulaVeiculo('truck')
         +celulaVeiculo('carreta')
@@ -3457,6 +3468,7 @@ function renderFrete(){
         linhas += '<tr class="frete-resumo-row"><td colspan="'+colspan+'" style="padding:0">'
           +'<div onclick="abrirModalRota(\''+r.id+'\')" style="cursor:pointer;background:#fafaf9;border-top:1px solid #e7e5e4;border-bottom:1px solid #e7e5e4;padding:12px 16px;display:flex;gap:24px;flex-wrap:wrap;align-items:center">'
           +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">KM:</strong> '+(r.km||'\u2014')+'</div>'
+          +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">Ped\u00e1gio:</strong> '+(r.pedagio!=null ? fR(r.pedagio) : '\u2014')+'</div>'
           +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">Pick-up:</strong> '+valorFreteBadge('pickup', r.km, r.pickup)+'</div>'
           +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">Truck:</strong> '+valorFreteBadge('truck', r.km, r.truck)+'</div>'
           +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">Carreta:</strong> '+valorFreteBadge('carreta', r.km, r.carreta)+'</div>'
@@ -3485,7 +3497,7 @@ function renderFrete(){
       cardsHtml += '<div class="frete-card-mobile'+(abertoMobile?' aberto':'')+'">'
         +'<div class="frete-card-mobile-head" onclick="toggleResumoRota(\''+r.id+'\')">'
         +'<div class="frete-card-mobile-rota">'+fmtRota(r)+'</div>'
-        +'<div class="frete-card-mobile-km">Km '+(r.km||'\u2014')+'</div>'
+        +'<div class="frete-card-mobile-km">Km '+(r.km||'\u2014')+'<br><span style="color:'+(r.pedagio!=null?'#78716c':'#a8a29e')+'">'+(r.pedagio!=null ? 'Ped\u00e1gio '+fR(r.pedagio) : 'Sem ped\u00e1gio') +'</span></div>'
         +'</div>'
         +'<div class="frete-card-mobile-valores">'+valoresMobile+'</div>'
         + (abertoMobile
@@ -3532,6 +3544,7 @@ function abrirModalRota(id){
   document.getElementById('rota-origem').value  = r ? r.origem  : 'Piracicaba';
   document.getElementById('rota-destino').value = r ? r.destino : '';
   document.getElementById('rota-km').value      = r ? (r.km||'') : '';
+  document.getElementById('rota-pedagio').value = (r && r.pedagio!=null) ? 'R$ '+r.pedagio.toFixed(2).replace('.',',') : '';
   document.getElementById('rota-pickup').value  = r ? 'R$ '+r.pickup.toFixed(2).replace('.',',')  : '';
   document.getElementById('rota-truck').value   = r ? 'R$ '+r.truck.toFixed(2).replace('.',',')   : '';
   document.getElementById('rota-carreta').value = r ? 'R$ '+r.carreta.toFixed(2).replace('.',',') : '';
@@ -3573,13 +3586,13 @@ function parseValFrete(s){
     });
   }
   document.addEventListener('DOMContentLoaded', function(){
-    ['rota-pickup','rota-truck','rota-carreta'].forEach(function(id){
+    ['rota-pedagio','rota-pickup','rota-truck','rota-carreta'].forEach(function(id){
       var el = document.getElementById(id);
       if(el) aplicarMascara(el);
     });
   });
   setTimeout(function(){
-    ['rota-pickup','rota-truck','rota-carreta'].forEach(function(id){
+    ['rota-pedagio','rota-pickup','rota-truck','rota-carreta'].forEach(function(id){
       var el = document.getElementById(id);
       if(el) aplicarMascara(el);
     });
@@ -3590,6 +3603,7 @@ function salvarRota(){
   var origem  = document.getElementById('rota-origem').value.trim();
   var destino = document.getElementById('rota-destino').value.trim();
   var km      = parseInt(document.getElementById('rota-km').value) || null;
+  var pedagio = parseValFrete(document.getElementById('rota-pedagio').value);
   var pickup  = parseValFrete(document.getElementById('rota-pickup').value);
   var truck   = parseValFrete(document.getElementById('rota-truck').value);
   var carreta = parseValFrete(document.getElementById('rota-carreta').value);
@@ -3602,7 +3616,7 @@ function salvarRota(){
     return;
   }
 
-  var payload = {origem:origem, destino:destino, km:km, pickup:pickup, truck:truck, carreta:carreta};
+  var payload = {origem:origem, destino:destino, km:km, pedagio:pedagio, pickup:pickup, truck:truck, carreta:carreta};
   var btn = document.querySelector('#modal-rota-bg .btn-apply-all');
   if(btn){ btn.textContent='Salvando...'; btn.disabled=true; }
 
@@ -3630,6 +3644,7 @@ function salvarRota(){
   .then(function(resultado){
     var salvo = Array.isArray(resultado) ? resultado[0] : resultado;
     var item = {id:salvo.id, origem:salvo.origem, destino:salvo.destino, km:salvo.km,
+                pedagio:(salvo.pedagio!=null ? parseFloat(salvo.pedagio) : null),
                 pickup:parseFloat(salvo.pickup), truck:parseFloat(salvo.truck), carreta:parseFloat(salvo.carreta)};
     if(_rotaEditId){
       var idx = FRETE.findIndex(function(x){return x.id===_rotaEditId;});
