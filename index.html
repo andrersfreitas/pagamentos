@@ -2832,6 +2832,29 @@ function marcarAlteracao(){
 // ── AUTOSAVE: Supabase + localStorage ──
 function autoSave(){
   CONS.forEach(function(r){ var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.lbl; });
+
+  // \u2500\u2500 TRAVA DE SEGURAN\u00c7A CONTRA QUEDA SUSPEITA DE DADOS \u2500\u2500
+  // sincronizarSupabase() apaga tudo na nuvem e reinsere o que est\u00e1 em
+  // mem\u00f3ria. Se por qualquer bug/timing os arrays CONS/PAG_OJI estiverem
+  // suspeitosamente menores que o \u00faltimo cache confi\u00e1vel (ex: caiu a zero,
+  // ou caiu mais da metade), interrompe ANTES de sobrescrever o cache local
+  // e ANTES de sincronizar \u2014 evita repetir a perda de dados dos Pagamentos Oji.
+  var cacheAnteriorRaw = localStorage.getItem(LS_KEY);
+  var cacheAnterior = null;
+  try{ if(cacheAnteriorRaw) cacheAnterior = JSON.parse(cacheAnteriorRaw); }catch(e){}
+  if(cacheAnterior){
+    var qtdConsAntes = (cacheAnterior.CONS||[]).length;
+    var qtdPagAntes  = (cacheAnterior.PAG_OJI||[]).length;
+    var quedaCons = qtdConsAntes>=5 && CONS.length    < qtdConsAntes*0.5;
+    var quedaPag  = qtdPagAntes>=5  && PAG_OJI.length  < qtdPagAntes*0.5;
+    if(quedaCons || quedaPag){
+      console.error('autoSave BLOQUEADO \u2014 queda suspeita de dados em mem\u00f3ria:',
+        {consAntes:qtdConsAntes, consAgora:CONS.length, pagAntes:qtdPagAntes, pagAgora:PAG_OJI.length});
+      setBadge('\u26a0 Sincroniza\u00e7\u00e3o bloqueada \u2014 queda suspeita (Consolidado '+qtdConsAntes+'\u2192'+CONS.length+' \u00b7 Oji '+qtdPagAntes+'\u2192'+PAG_OJI.length+'). Recarregue a p\u00e1gina antes de continuar.', false);
+      return;
+    }
+  }
+
   // Sempre salvar no localStorage como fallback
   try{
     localStorage.setItem(LS_KEY, JSON.stringify({
