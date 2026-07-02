@@ -781,6 +781,14 @@ body.modo-consulta .mtab{pointer-events:none}
       <option value="carreta">Carreta</option>
     </select>
     <button class="btn btn-dark" onclick="abrirModalRota(null)" id="btn-nova-rota">&#x2795; Nova rota</button>
+    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#44403c;cursor:pointer;user-select:none">
+      <input type="checkbox" id="rel-incluir-pedagio" style="width:14px;height:14px;accent-color:#1c1917;cursor:pointer">
+      Incluir ped&#xE1;gio no relat&#xF3;rio
+    </label>
+    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#44403c;cursor:pointer;user-select:none">
+      <input type="checkbox" id="rel-incluir-piso" style="width:14px;height:14px;accent-color:#1c1917;cursor:pointer">
+      Incluir piso m&#xED;nimo no relat&#xF3;rio
+    </label>
     <button class="btn btn-ghost" onclick="imprimirRotasFrete()" id="btn-imprimir-frete">&#x1F5A8; Imprimir rotas</button>
     <div style="flex:1"></div>
     <span style="font-size:12px;color:#78716c" id="frete-count"></span>
@@ -2739,6 +2747,15 @@ var _autoSaveTimer = null;
 var _sbOnline = false;
 var _lastSyncHash = null;
 
+// Sincronização por registro (consolidado/pagamentos_oji): em vez de apagar
+// tudo e reinserir a cada autosave, guardamos os ids já conhecidos na nuvem
+// (pra detectar exclusões) e um "fingerprint" do último estado enviado de
+// cada registro (pra não reenviar o que não mudou).
+var _consIdsCarregados = [];
+var _pagIdsCarregados = [];
+var _consSyncCache = {};
+var _pagSyncCache = {};
+
 // ── API Supabase ──
 function sbHeaders(){
   return {
@@ -2873,56 +2890,98 @@ function autoSave(){
   sincronizarSupabase();
 }
 
+function mapConsParaSupabase(r){
+  return {doc:r.doc, tipo:r.tipo, em:r.em||null, venc:r.venc||null, pgto:r.pgto||null, val:r.val, vei:r.vei||null};
+}
+function mapPagParaSupabase(r){
+  return {doc:r.doc, data:r.data||null, valor:r.valor};
+}
+
+// Sincroniza uma tabela registro por registro, NUNCA apagando tudo de uma
+// vez: exclui só os ids que saíram da lista local, atualiza só os registros
+// cujo conteúdo mudou desde a última sincronização (via fingerprint) e
+// insere só os que ainda não têm id. Isso elimina o "apaga tudo e
+// reinsere" que causava risco de perda de dados em caso de bug/timing.
+function sincronizarTabela(nomeTabela, itens, idsCarregados, syncCache, mapParaSupabase){
+  var idsAtuais = {};
+  itens.forEach(function(r){ if(r.id) idsAtuais[r.id] = true; });
+  var idsRemovidos = idsCarregados.filter(function(id){ return !idsAtuais[id]; });
+
+  var reqs = [];
+
+  idsRemovidos.forEach(function(id){
+    reqs.push(
+      sbFetch(nomeTabela+'?id=eq.'+id, {method:'DELETE', headers:Object.assign({},sbHeaders(),{'Prefer':'return=minimal'})})
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); delete syncCache[id]; })
+    );
+  });
+
+  itens.forEach(function(r){
+    if(!r.id) return; // registros novos são tratados abaixo, em lote
+    var payload = mapParaSupabase(r);
+    var fingerprint = JSON.stringify(payload);
+    if(syncCache[r.id] === fingerprint) return; // nada mudou nesse registro, não reenvia
+    reqs.push(
+      sbFetch(nomeTabela+'?id=eq.'+r.id, {method:'PATCH', headers:Object.assign({},sbHeaders(),{'Prefer':'return=minimal'}), body:JSON.stringify(payload)})
+      .then(function(resp){ if(!resp.ok) throw new Error('HTTP '+resp.status); syncCache[r.id] = fingerprint; })
+    );
+  });
+
+  var novos = itens.filter(function(r){ return !r.id; });
+  if(novos.length){
+    var lotes = [];
+    for(var i=0; i<novos.length; i+=100) lotes.push(novos.slice(i,i+100));
+    var pInsercao = lotes.reduce(function(p, lote){
+      return p.then(function(){
+        return sbFetch(nomeTabela, {
+          method:'POST',
+          headers:Object.assign({}, sbHeaders(), {'Prefer':'return=representation'}),
+          body:JSON.stringify(lote.map(mapParaSupabase))
+        })
+        .then(function(resp){ if(!resp.ok) throw new Error('HTTP '+resp.status); return resp.json(); })
+        .then(function(salvos){
+          lote.forEach(function(item, idx){
+            if(salvos[idx]){
+              item.id = salvos[idx].id;
+              syncCache[item.id] = JSON.stringify(mapParaSupabase(item));
+            }
+          });
+        });
+      });
+    }, Promise.resolve());
+    reqs.push(pInsercao);
+  }
+
+  return Promise.all(reqs).then(function(){
+    idsCarregados.length = 0;
+    itens.forEach(function(r){ if(r.id) idsCarregados.push(r.id); });
+  });
+}
+
 function sincronizarSupabase(){
-  // Evitar sync desnecess\u00E1rio se dados n\u00E3o mudaram
+  // Evitar sync desnecessário se dados não mudaram
   var currentHash = CONS.length + ':' + PAG_OJI.length + ':' +
     (CONS.reduce(function(a,r){return a+r.val;},0)|0);
   if(currentHash === _lastSyncHash){
     setBadge('\u2713 Sem altera\u00E7\u00F5es para sincronizar', true);
     return;
   }
-  var hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   setBadge('\u231B Sincronizando...', true);
 
-  // Limpar tabelas usando filtro obrigatório do PostgREST
-  var delHeaders = Object.assign({}, sbHeaders(), {'Prefer': 'return=minimal'});
-  sbFetch('consolidado?id=neq.00000000-0000-0000-0000-000000000000', {method:'DELETE', headers: delHeaders})
-  .then(function(){
-    return sbFetch('pagamentos_oji?id=neq.00000000-0000-0000-0000-000000000000', {method:'DELETE', headers: delHeaders});
-  })
-  .then(function(){
-    // Inserir CONS em lotes de 100
-    var lotes = [];
-    for(var i=0; i<CONS.length; i+=100) lotes.push(CONS.slice(i,i+100));
-    return lotes.reduce(function(p, lote){
-      return p.then(function(){
-        var rows = lote.map(function(r){
-          return {doc:r.doc, tipo:r.tipo, em:r.em||null, venc:r.venc||null,
-                  pgto:r.pgto||null, val:r.val, vei:r.vei||null};
-        });
-        return sbFetch('consolidado', {method:'POST', body:JSON.stringify(rows)});
-      });
-    }, Promise.resolve());
-  })
-  .then(function(){
-    // Inserir PAG_OJI em lotes de 100
-    var lotes = [];
-    for(var i=0; i<PAG_OJI.length; i+=100) lotes.push(PAG_OJI.slice(i,i+100));
-    return lotes.reduce(function(p, lote){
-      return p.then(function(){
-        var rows = lote.map(function(r){
-          return {doc:r.doc, data:r.data||null, valor:r.valor};
-        });
-        return sbFetch('pagamentos_oji', {method:'POST', body:JSON.stringify(rows)});
-      });
-    }, Promise.resolve());
-  })
+  Promise.all([
+    sincronizarTabela('consolidado', CONS, _consIdsCarregados, _consSyncCache, mapConsParaSupabase),
+    sincronizarTabela('pagamentos_oji', PAG_OJI, _pagIdsCarregados, _pagSyncCache, mapPagParaSupabase)
+  ])
   .then(function(){
     var hora2 = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     setBadge('\u2713 Sincronizado \u00e0s ' + hora2 + ' \u2014 ' + CONS.length + ' docs', true);
-    _lastSyncHash = CONS.length + ':' + PAG_OJI.length + ':' + (CONS.reduce(function(a,r){return a+r.val;},0)|0);
+    _lastSyncHash = currentHash;
     var el=document.getElementById('topbar-count');
     if(el) el.textContent=CONS.length+' documentos';
+    // Persistir os ids atribuídos aos registros novos também no cache local
+    try{ localStorage.setItem(LS_KEY, JSON.stringify({
+      ts:new Date().toISOString(), CONS:CONS, PAG_OJI:PAG_OJI, VEICS:VEICS, MC:MC, MO:MO
+    })); }catch(e){}
   })
   .catch(function(e){
     console.error('Erro sync Supabase:', e);
@@ -3001,7 +3060,7 @@ function carregarDados(){
         cons_data.forEach(function(r){
           var st = calcSt(r.pgto, r.venc);
           CONS.push({
-            doc:r.doc, tipo:r.tipo, em:r.em, venc:r.venc,
+            id:r.id, doc:r.doc, tipo:r.tipo, em:r.em, venc:r.venc,
             pgto:r.pgto, val:parseFloat(r.val), vei:r.vei||'',
             stKey:st.key, stLbl:st.lbl
           });
@@ -3010,7 +3069,21 @@ function carregarDados(){
         // Substituir PAG_OJI
         PAG_OJI.length = 0;
         pag_data.forEach(function(r){
-          PAG_OJI.push({doc:r.doc, data:r.data, valor:parseFloat(r.valor)});
+          PAG_OJI.push({id:r.id, doc:r.doc, data:r.data, valor:parseFloat(r.valor)});
+        });
+
+        // O que acabou de vir da nuvem já está, por definição, em sincronia —
+        // guarda os ids e um "fingerprint" de cada um, assim o próximo
+        // autosave só envia o que realmente mudar a partir de agora.
+        _consIdsCarregados.length = 0;
+        _consSyncCache = {};
+        CONS.forEach(function(r){
+          if(r.id){ _consIdsCarregados.push(r.id); _consSyncCache[r.id] = JSON.stringify(mapConsParaSupabase(r)); }
+        });
+        _pagIdsCarregados.length = 0;
+        _pagSyncCache = {};
+        PAG_OJI.forEach(function(r){
+          if(r.id){ _pagIdsCarregados.push(r.id); _pagSyncCache[r.id] = JSON.stringify(mapPagParaSupabase(r)); }
         });
 
         // Recalcular VEICS e MC
@@ -3057,6 +3130,21 @@ function restaurarDoLocalStorage(){
     if(payload.MC){MC.length=0;payload.MC.forEach(function(m){MC.push(m);});}
     if(payload.MO){MO.length=0;payload.MO.forEach(function(m){MO.push(m);});}
     CONS.forEach(function(r){var s=calcSt(r.pgto,r.venc);r.stKey=s.key;r.stLbl=s.lbl;});
+
+    // Registros restaurados do cache que j\u00e1 t\u00eam id foram, em algum momento,
+    // sincronizados com esse conte\u00fado \u2014 evita reenviar tudo \u00e0 toa assim que
+    // a conex\u00e3o voltar.
+    _consIdsCarregados.length = 0;
+    _consSyncCache = {};
+    CONS.forEach(function(r){
+      if(r.id){ _consIdsCarregados.push(r.id); _consSyncCache[r.id] = JSON.stringify(mapConsParaSupabase(r)); }
+    });
+    _pagIdsCarregados.length = 0;
+    _pagSyncCache = {};
+    PAG_OJI.forEach(function(r){
+      if(r.id){ _pagIdsCarregados.push(r.id); _pagSyncCache[r.id] = JSON.stringify(mapPagParaSupabase(r)); }
+    });
+
     var ts=new Date(payload.ts).toLocaleString('pt-BR');
     setBadge('\u2713 Cache local restaurado ('+ts+')', false);
     return true;
@@ -3428,6 +3516,16 @@ function pisoMinimoTxt(v, km){
   return piso==null ? '—' : fR(piso);
 }
 
+// Bloco de um veículo (tarifa + piso mínimo embaixo) usado na linha
+// expandida da Tabela de Frete (desktop).
+function blocoVeiculoResumo(v, lbl, r){
+  return '<div style="background:#fff;border:1px solid #e7e5e4;border-radius:8px;padding:12px;text-align:center">'
+    +'<div style="font-size:11px;color:#a8a29e;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px">'+lbl+'</div>'
+    +'<div style="font-size:16px">'+valorFreteBadge(v, r.km, r[v])+'</div>'
+    +'<div style="font-size:11px;color:#78716c;margin-top:8px;padding-top:8px;border-top:1px dashed #e7e5e4">Piso mín: <b style="color:#44403c">'+pisoMinimoTxt(v, r.km)+'</b></div>'
+    +'</div>';
+}
+
 function filtrarFrete(){
   var q = (document.getElementById('frete-busca').value||'').toLowerCase();
   _freteFiltrado = FRETE.filter(function(r){
@@ -3499,22 +3597,29 @@ function renderFrete(){
         +celulaVeiculo('carreta')
         +'</tr>';
 
-      // Linha de resumo expandido, só aparece se esta rota estiver selecionada (desktop)
+      // Linha de resumo expandido, só aparece se esta rota estiver selecionada
+      // (desktop). Cada veículo vira um bloco com tarifa + piso mínimo embaixo
+      // (igual ao padrão já usado no card mobile), em vez de tudo espremido
+      // numa linha só, e o pedágio deixa de aparecer duplicado.
       if(_rotaExpandidaId === r.id){
         var colspan = veiculo ? 2 : 4;
         linhas += '<tr class="frete-resumo-row"><td colspan="'+colspan+'" style="padding:0">'
-          +'<div onclick="abrirModalRota(\''+r.id+'\')" style="cursor:pointer;background:#fafaf9;border-top:1px solid #e7e5e4;border-bottom:1px solid #e7e5e4;padding:12px 16px;display:flex;gap:24px;flex-wrap:wrap;align-items:center">'
-          +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">KM:</strong> '+(r.km||'\u2014')+'</div>'
-          +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">Ped\u00e1gio:</strong> '+(pedagioTxt(r) || '\u2014')+'</div>'
-          +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">Pick-up:</strong> '+valorFreteBadge('pickup', r.km, r.pickup)+'</div>'
-          +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">Truck:</strong> '+valorFreteBadge('truck', r.km, r.truck)+'</div>'
-          +'<div style="font-size:11px;color:#78716c"><strong style="color:#1c1917">Carreta:</strong> '+valorFreteBadge('carreta', r.km, r.carreta)+'</div>'
-          +'<div style="margin-left:auto;font-size:11px;color:#2563eb;font-weight:600;display:flex;align-items:center;gap:4px">Ver detalhes e editar <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>'
-          +'<div style="flex-basis:100%;font-size:11px;color:#78716c;padding-top:6px;border-top:1px dashed #e7e5e4;margin-top:2px">'
-          +'<strong style="color:#1c1917">Piso mínimo ANTT:</strong> Pick-up '+pisoMinimoTxt('pickup', r.km)+' &middot; Truck '+pisoMinimoTxt('truck', r.km)+' &middot; Carreta '+pisoMinimoTxt('carreta', r.km)
+          +'<div style="background:#fafaf9;border-top:1px solid #e7e5e4;border-bottom:1px solid #e7e5e4;padding:16px">'
+          +'<div style="display:flex;gap:20px;font-size:11px;color:#78716c;margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed #d6d3d1">'
+          +'<div><strong style="color:#1c1917">KM:</strong> '+(r.km||'\u2014')+'</div>'
+          +'<div><strong style="color:#1c1917">Ped\u00e1gio:</strong> '+(pedagioTxt(r) || '\u2014')+'</div>'
+          +'</div>'
+          +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">'
+          +blocoVeiculoResumo('pickup','Pick-up',r)
+          +blocoVeiculoResumo('truck','Truck',r)
+          +blocoVeiculoResumo('carreta','Carreta',r)
+          +'</div>'
+          +'<div style="margin-top:14px;text-align:right">'
+          +'<span onclick="abrirModalRota(\''+r.id+'\')" style="font-size:12px;color:#2563eb;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px">Ver detalhes e editar <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span>'
           +'</div>'
           +'</div></td></tr>';
       }
+
 
       // Card mobile equivalente — acordeão: fechado mostra só rota/km/tarifas;
       // ao tocar, expande (fecha qualquer outra) e mostra o piso mínimo ANTT
@@ -3857,22 +3962,26 @@ function imprimirRotasFrete(){
   var veiculo = document.getElementById('frete-veiculo-filtro').value;
   var veiculoLabel = veiculo === 'pickup' ? 'Pick-up' : veiculo === 'truck' ? 'Truck' : veiculo === 'carreta' ? 'Carreta' : 'Todos os ve\u00edculos';
   var gerado = new Date().toLocaleDateString('pt-BR')+' \u00e0s '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  var incluirPedagio = document.getElementById('rel-incluir-pedagio').checked;
+  var incluirPiso = document.getElementById('rel-incluir-piso').checked;
 
-  var colunas = veiculo
-    ? ['Rota','KM', veiculoLabel]
-    : ['Rota','KM','Pick-up','Truck','Carreta'];
+  function celVeiculoImpressa(v, r){
+    return '<td class="num"><div class="cel-tarifa">'+fR(r[v])+'</div>'
+      +(incluirPiso ? '<div class="cel-piso">Piso: '+pisoMinimoTxt(v, r.km)+'</div>' : '')
+      +'</td>';
+  }
+
+  var colunas = veiculo ? [veiculoLabel] : ['Pick-up','Truck','Carreta'];
 
   var linhas = _freteFiltrado.map(function(r){
-    var cols = ['<td style="padding:6px 10px;font-weight:600">'+fmtRota(r)+'</td>',
-                '<td style="padding:6px 10px;text-align:right">'+(r.km||'\u2014')+'</td>'];
-    if(veiculo){
-      cols.push('<td style="padding:6px 10px;text-align:right;font-weight:600">'+fR(r[veiculo])+'</td>');
-    } else {
-      cols.push('<td style="padding:6px 10px;text-align:right">'+fR(r.pickup)+'</td>');
-      cols.push('<td style="padding:6px 10px;text-align:right">'+fR(r.truck)+'</td>');
-      cols.push('<td style="padding:6px 10px;text-align:right">'+fR(r.carreta)+'</td>');
-    }
-    return '<tr>'+cols.join('')+'</tr>';
+    var celulasHtml = veiculo
+      ? celVeiculoImpressa(veiculo, r)
+      : celVeiculoImpressa('pickup',r) + celVeiculoImpressa('truck',r) + celVeiculoImpressa('carreta',r);
+
+    var metaPartes = ['KM '+(r.km||'\u2014')];
+    if(incluirPedagio) metaPartes.push(pedagioTxt(r) || 'Sem ped\u00e1gio cadastrado');
+
+    return '<tr><td><div class="cel-rota">'+fmtRota(r)+'</div><div class="cel-meta">'+metaPartes.join(' &middot; ')+'</div></td>'+celulasHtml+'</tr>';
   }).join('');
 
   var html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
@@ -3884,6 +3993,13 @@ function imprimirRotasFrete(){
     +'thead th{background:#f5f5f4;padding:6px 10px;text-align:left;font-size:10px;font-weight:600;color:#78716c;text-transform:uppercase;border-bottom:1px solid #e7e5e4}'
     +'tbody tr:nth-child(even){background:#fafaf9}'
     +'td{border-bottom:1px solid #f5f5f4}'
+    +'.rel-tabela td.num,.rel-tabela th.num{text-align:right}'
+    +'.rel-tabela td{vertical-align:top;padding:5px 8px}'
+    +'.rel-tabela th{padding:5px 8px}'
+    +'.cel-rota{font-weight:600}'
+    +'.cel-meta{font-size:9px;color:#a8a29e;margin-top:1px}'
+    +'.cel-tarifa{font-weight:700;font-size:11px}'
+    +'.cel-piso{font-size:8.5px;color:#78716c;margin-top:1px}'
     +'</style></head><body>'
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #1c1917">'
     +'<div><div style="font-size:20px;font-weight:700">Tabela de Frete</div>'
@@ -3892,7 +4008,7 @@ function imprimirRotasFrete(){
     +'<div style="font-size:12px;font-weight:600">'+gerado+'</div>'
     +'<div style="font-size:11px;color:#78716c;margin-top:2px">'+_freteFiltrado.length+' rotas</div></div>'
     +'</div>'
-    +'<table><thead><tr>'+colunas.map(function(c,i){return '<th'+(i>=1?' style="text-align:right"':'')+'>'+c+'</th>';}).join('')+'</tr></thead>'
+    +'<table class="rel-tabela"><thead><tr><th>Rota</th>'+colunas.map(function(c){return '<th class="num">'+c+'</th>';}).join('')+'</tr></thead>'
     +'<tbody>'+linhas+'</tbody></table>'
     +'<div style="margin-top:24px;padding-top:14px;border-top:2px solid #1c1917">'
     +'<div style="font-size:14px;font-weight:700;margin-bottom:10px">Coletas Adicionais</div>'
@@ -3917,7 +4033,6 @@ function imprimirRotasFrete(){
   w.document.close();
   w.onload = function(){ w.print(); };
 }
-
 // ═══════════════════════════════════════════════════════════════
 // PISO MÍNIMO ANTT — módulo isolado, cadastro de coeficientes
 // (CC/CCD por veículo) + calculadora de piso mínimo de frete.
