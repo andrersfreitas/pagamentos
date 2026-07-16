@@ -2909,7 +2909,10 @@ function fazerBackup(){
   var btn = document.getElementById('btn-backup');
   btn.textContent = '\u231B Gerando...';
   btn.disabled = true;
-  setTimeout(function(){
+  // Garantir que frete e coletas est\u00E3o carregados antes de salvar
+  var promFrete = (typeof carregarFrete === 'function') ? carregarFrete() : Promise.resolve();
+  var promColetas = (typeof carregarColetas === 'function') ? carregarColetas() : Promise.resolve();
+  Promise.all([promFrete, promColetas]).then(function(){
     try{
       CONS.forEach(function(r){ var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.lbl; });
       var payload = {
@@ -2948,7 +2951,7 @@ function fazerBackup(){
       alert('Erro ao gerar backup: ' + e.message);
       btn.innerHTML = 'Backup'; btn.disabled = false;
     }
-  }, 100);
+  });
 }
 
 function restaurarBackup(input){
