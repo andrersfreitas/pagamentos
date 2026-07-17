@@ -1,0 +1,23 @@
+name: Supabase Keepalive
+
+on:
+  schedule:
+    - cron: '0 10 */5 * *'  # A cada 5 dias às 10h UTC
+  workflow_dispatch:         # Permite rodar manualmente
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://dvhtasursksfniybiiiy.supabase.co/rest/v1/consolidado?limit=1" \
+            -H "apikey: sb_publishable_ExPE_zDxixTTjYe6H4-17Q_6RYCHoYT" \
+            -H "Authorization: Bearer sb_publishable_ExPE_zDxixTTjYe6H4-17Q_6RYCHoYT")
+          echo "Supabase status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "AVISO: Supabase retornou status $STATUS"
+            exit 1
+          fi
+          echo "OK - Supabase ativo"
