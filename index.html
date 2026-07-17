@@ -3196,81 +3196,163 @@ function restaurarDoLocalStorage(){
   }catch(e){ return false; }
 }
 
+// ── ZIP / XLSX ────────────────────────────────────────────
+function _zipFiles(files){
+  var cT=[];for(var i=0;i<256;i++){var c=i;for(var j=0;j<8;j++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);cT[i]=c;}
+  function crc32(b){var c=0xFFFFFFFF;for(var i=0;i<b.length;i++)c=cT[(c^b[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
+  function u8(str){var b=[];for(var i=0;i<str.length;i++){var code=str.charCodeAt(i);if(code<0x80)b.push(code);else if(code<0x800){b.push(0xC0|(code>>6));b.push(0x80|(code&0x3F));}else{b.push(0xE0|(code>>12));b.push(0x80|((code>>6)&0x3F));b.push(0x80|(code&0x3F));}}return b;}
+  function u16(n){return[n&0xFF,(n>>8)&0xFF];}
+  function u32(n){n=n>>>0;return[n&0xFF,(n>>8)&0xFF,(n>>16)&0xFF,(n>>24)&0xFF];}
+  var lp=[],cp=[],off=0;
+  files.forEach(function(f){
+    var nb=u8(f.name),db=u8(f.data),crc=crc32(db),sz=db.length;
+    var loc=[0x50,0x4B,0x03,0x04,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00].concat(u32(crc)).concat(u32(sz)).concat(u32(sz)).concat(u16(nb.length)).concat([0x00,0x00]).concat(nb).concat(db);
+    var cen=[0x50,0x4B,0x01,0x02,0x14,0x00,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00].concat(u32(crc)).concat(u32(sz)).concat(u32(sz)).concat(u16(nb.length)).concat([0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00]).concat(u32(off)).concat(nb);
+    lp.push(loc); cp.push(cen); off+=loc.length;
+  });
+  var cs=off,cl=cp.reduce(function(a,b){return a+b.length;},0);
+  var end=[0x50,0x4B,0x05,0x06,0x00,0x00,0x00,0x00].concat(u16(files.length)).concat(u16(files.length)).concat(u32(cl)).concat(u32(cs)).concat([0x00,0x00]);
+  var all=[];lp.forEach(function(p){all=all.concat(p);});cp.forEach(function(p){all=all.concat(p);});all=all.concat(end);
+  return new Uint8Array(all);
+}
+
+function _buildXLSX(sheets){
+  function xe(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function xc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}// element content
+  function col(i){var s='';i++;while(i>0){s=String.fromCharCode(64+(i%26||26))+s;i=Math.floor((i-(i%26||26))/26);}return s;}
+
+  function wsXml(sheet){
+    var x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+    sheet.rows.forEach(function(row,ri){
+      x+='<row r="'+(ri+1)+'">';
+      row.forEach(function(c,ci){
+        var ref=col(ci)+(ri+1),sa=c.s?' s="'+c.s+'"':'';
+        if(c.f) x+='<c r="'+ref+'" t="str"'+sa+'><f>'+xc(c.f)+'</f><v>'+xe(c.v||'')+'</v></c>';
+        else if(c.t==='n') x+='<c r="'+ref+'"'+sa+'><v>'+c.v+'</v></c>';
+        else x+='<c r="'+ref+'" t="inlineStr"'+sa+'><is><t>'+xe(c.v||'')+'</t></is></c>';
+      });
+      x+='</row>';
+    });
+    return x+'</sheetData></worksheet>';
+  }
+
+  var n=sheets.length;
+  var ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+sheets.map(function(_,i){return'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';}).join('')+'</Types>';
+  var rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+  var wb='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+sheets.map(function(s,i){return'<sheet name="'+xe(s.name)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>';}).join('')+'</sheets></workbook>';
+  var wbr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map(function(_,i){return'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>';}).join('')+'<Relationship Id="rId'+(n+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
+  var st='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="DD/MM/YYYY"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/><color rgb="FFFFFFFF"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1C1917"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>';
+
+  var files=[{name:'[Content_Types].xml',data:ct},{name:'_rels/.rels',data:rels},{name:'xl/workbook.xml',data:wb},{name:'xl/_rels/workbook.xml.rels',data:wbr},{name:'xl/styles.xml',data:st}];
+  sheets.forEach(function(s,i){files.push({name:'xl/worksheets/sheet'+(i+1)+'.xml',data:wsXml(s)});});
+  return _zipFiles(files);
+}
+
 // ── EXPORTAR EXCEL ───────────────────────────────────────
 function exportarExcel(){
   var promFrete = (typeof carregarFrete==='function') ? carregarFrete() : Promise.resolve();
   promFrete.then(function(){
     try{
-      function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-      function cel(v,tipo){
-        if(tipo==='n'&&v!==''&&!isNaN(v)) return '<Cell><Data ss:Type="Number">'+v+'</Data></Cell>';
-        return '<Cell><Data ss:Type="String">'+esc(v)+'</Data></Cell>';
+      function xe(v){
+        return String(v==null?'':v)
+          .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,'')
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
       }
-      function cabecalho(cols){ return '<Row>'+cols.map(function(c){return '<Cell ss:StyleID="h"><Data ss:Type="String">'+esc(c)+'</Data></Cell>';}).join('')+'</Row>\n'; }
-      function sheet(nome, rows){ return '<Worksheet ss:Name="'+esc(nome)+'"><Table>\n'+rows+'</Table></Worksheet>\n'; }
+      function fV(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
 
-      var fD=function(d){return d?d.split('-').reverse().join('/'):''};
-      var fR=function(v){return isNaN(v)?'':Number(v).toFixed(2).replace('.',',')};
-
-      // Aba 1 — Consolidado
-      var s1=cabecalho(['Documento','Tipo','Emissão','Vencimento','Pagamento','Valor (R$)','Veículo','Status']);
+      // stats para resumo e dashboard
+      var st={ok:0,late:0,due:0,open:0,vOk:0,vLate:0,vDue:0,vOpen:0,tot:0,rec:0};
       CONS.forEach(function(r){
-        s1+='<Row>'+cel(r.doc,'n')+cel(r.tipo)+cel(fD(r.em))+cel(fD(r.venc))+cel(fD(r.pgto))+cel(fR(r.val),'n')+cel(r.vei||'')+cel(r.stLbl||'')+'</Row>\n';
+        var v=fV(r.val); st.tot+=v;
+        if(r.stKey==='ok'){st.ok++;st.vOk+=v;st.rec+=v;}
+        else if(r.stKey==='late'){st.late++;st.vLate+=v;st.rec+=v;}
+        else if(r.stKey==='due'){st.due++;st.vDue+=v;}
+        else{st.open++;st.vOpen+=v;}
       });
 
-      // Aba 2 — Pagamentos OJI
-      var s2=cabecalho(['Documento','Data','Valor (R$)']);
-      PAG_OJI.forEach(function(r){
-        s2+='<Row>'+cel(r.doc)+cel(fD(r.data))+cel(fR(r.valor),'n')+'</Row>\n';
-      });
+      // helpers XLSX: células como objetos {v,t,s,f}
+      function S(v,s){return{v:String(v==null?'':v).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,''),t:'s',s:s||0};}
+      function N(v,s){return{v:fV(v),t:'n',s:s||0};}
+      function D(d,s){if(!d)return S('');var dt=new Date(d+'T00:00:00'),ep=new Date('1899-12-30T00:00:00');return{v:Math.round((dt-ep)/86400000),t:'n',s:s||3};}
+      function F(f,v){return{f:f,v:String(v||''),t:'str',s:0};}
+      function H(v){return S(v,1);}
 
-      // Aba 3 — Tabela de Frete
-      var s3=cabecalho(['Origem','Destino','KM','Pick-up (R$)','Truck (R$)','Carreta (R$)']);
+      // ── ABA 1: CONSOLIDADO ──
+      var c1=[[H('Documento'),H('Tipo'),H('Emissao'),H('Vencimento'),H('Pagamento'),H('Valor R$'),H('Veiculo'),H('Status')]];
+      var rn=2;
+      CONS.forEach(function(r){
+        var formula='IF(E'+rn+'="",IF(D'+rn+'<TODAY(),"Vencido","A vencer"),IF(E'+rn+'>D'+rn+',"Pago c/ atraso","Pago em dia"))';
+        c1.push([S(r.doc),S(r.tipo),D(r.em,3),D(r.venc,3),D(r.pgto,3),N(r.val,2),S(r.vei||''),F(formula,r.stLbl||'')]);
+        rn++;
+      });
+      c1.push([S('TOTAL'),S(''),S(''),S(''),S(''),N(st.tot,2),S(''),S('')]);
+      c1.push([S(''),S(''),S(''),S(''),S(''),S(''),S(''),S('')]);
+      c1.push([H('Status'),H('Qtd'),H('Valor R$'),S(''),S(''),S(''),S(''),S('')]);
+      c1.push([S('Pago em dia'),N(st.ok),N(st.vOk,2),S(''),S(''),S(''),S(''),S('')]);
+      c1.push([S('Pago c/ atraso'),N(st.late),N(st.vLate,2),S(''),S(''),S(''),S(''),S('')]);
+      c1.push([S('Vencido'),N(st.due),N(st.vDue,2),S(''),S(''),S(''),S(''),S('')]);
+      c1.push([S('A vencer'),N(st.open),N(st.vOpen,2),S(''),S(''),S(''),S(''),S('')]);
+      c1.push([S('% Recebido'),S(st.tot>0?((st.rec/st.tot)*100).toFixed(1)+'%':'0%'),S(''),S(''),S(''),S(''),S(''),S('')]);
+      c1.push([S('Inadimplencia'),S(CONS.length>0?((st.due/CONS.length)*100).toFixed(1)+'%':'0%'),S(''),S(''),S(''),S(''),S(''),S('')]);
+
+      // ── ABA 2: PAGAMENTOS OJI ──
+      var c2=[[H('Documento'),H('Data'),H('Valor R$')]];
+      var totOji=0;
+      PAG_OJI.forEach(function(r){totOji+=fV(r.valor);c2.push([S(r.doc),D(r.data,3),N(r.valor,2)]);});
+      c2.push([S('TOTAL'),S(''),N(totOji,2)]);
+      c2.push([S(''),S(''),S('')]);
+      c2.push([H('Mes'),H('Valor R$'),S('')]);
+      var meses={};
+      PAG_OJI.forEach(function(r){if(r.data){var m=r.data.slice(0,7);meses[m]=(meses[m]||0)+fV(r.valor);}});
+      Object.keys(meses).sort().forEach(function(m){c2.push([S(m.split('-')[1]+'/'+m.split('-')[0]),N(meses[m],2),S('')]);});
+
+      // ── ABA 3: TABELA DE FRETE ──
+      var coef=(typeof PISO_COEF!=='undefined')?PISO_COEF:{pickup:{cc:0,ccd:0},truck:{cc:0,ccd:0},carreta:{cc:0,ccd:0}};
+      var c3=[[H('Origem'),H('Destino'),H('KM'),H('Pick-up R$'),H('Piso Pick-up'),H('Dif Pick-up'),H('Truck R$'),H('Piso Truck'),H('Dif Truck'),H('Carreta R$'),H('Piso Carreta'),H('Dif Carreta')]];
       (FRETE||[]).forEach(function(r){
-        s3+='<Row>'+cel(r.origem)+cel(r.destino)+cel(r.km,'n')+cel(fR(r.pickup),'n')+cel(fR(r.truck),'n')+cel(fR(r.carreta),'n')+'</Row>\n';
+        var km=fV(r.km),cp=coef.pickup||{},ct=coef.truck||{},cc=coef.carreta||{};
+        var pp=km*(cp.ccd||0)+(cp.cc||0),pt=km*(ct.ccd||0)+(ct.cc||0),pc=km*(cc.ccd||0)+(cc.cc||0);
+        var pu=fV(r.pickup),tr=fV(r.truck),ca=fV(r.carreta);
+        c3.push([S(r.origem),S(r.destino),N(km),N(pu,2),N(pp,2),N(pu-pp,2),N(tr,2),N(pt,2),N(tr-pt,2),N(ca,2),N(pc,2),N(ca-pc,2)]);
       });
 
-      // Aba 4 — Piso ANTT (calcula com base no FRETE e tabela ANTT embutida)
-      var s4=cabecalho(['Origem','Destino','KM','Veículo','Piso ANTT (R$)','Tarifa Negociada (R$)','Diferença (R$)','Status']);
-      if(typeof ANTT_TABELA!=='undefined'&&FRETE){
-        FRETE.forEach(function(r){
-          ['pickup','truck','carreta'].forEach(function(vei,i){
-            var vNome=['Pick-up','Truck','Carreta'][i];
-            var piso=typeof calcPisoANTT==='function'?calcPisoANTT(r.km,vei):null;
-            if(piso){
-              var neg=parseFloat(r[vei])||0;
-              var diff=(neg-piso).toFixed(2);
-              var st=neg>=piso?'OK':'Abaixo do piso';
-              s4+='<Row>'+cel(r.origem)+cel(r.destino)+cel(r.km,'n')+cel(vNome)+cel(fR(piso),'n')+cel(fR(neg),'n')+cel(diff,'n')+cel(st)+'</Row>\n';
-            }
-          });
-        });
-      } else {
-        s4+='<Row><Cell><Data ss:Type="String">Dados de Piso ANTT não disponíveis nesta sessão. Acesse a aba Piso ANTT primeiro.</Data></Cell></Row>\n';
-      }
+      // ── ABA 4: DASHBOARD ──
+      var cteV=CONS.filter(function(r){return r.tipo==='CTe';}),nfsV=CONS.filter(function(r){return r.tipo==='NFS-e';});
+      var avgCte=cteV.length?cteV.reduce(function(a,r){return a+fV(r.val);},0)/cteV.length:0;
+      var avgNfs=nfsV.length?nfsV.reduce(function(a,r){return a+fV(r.val);},0)/nfsV.length:0;
+      var c4=[[H('Indicador'),H('Valor')]];
+      c4.push([S('Data'),S(new Date().toLocaleDateString('pt-BR'))]);
+      c4.push([S('Total documentos'),N(CONS.length)]);
+      c4.push([S('Total emitido R$'),N(st.tot,2)]);
+      c4.push([S('Total recebido R$'),N(st.rec,2)]);
+      c4.push([S('A receber R$'),N(st.vDue+st.vOpen,2)]);
+      c4.push([S('Vencidos qtd'),N(st.due)]);
+      c4.push([S('Vencidos valor R$'),N(st.vDue,2)]);
+      c4.push([S('Pago c/ atraso qtd'),N(st.late)]);
+      c4.push([S('% Recebido'),S(st.tot>0?((st.rec/st.tot)*100).toFixed(1)+'%':'0%')]);
+      c4.push([S('Inadimplencia %'),S(CONS.length>0?((st.due/CONS.length)*100).toFixed(1)+'%':'0%')]);
+      c4.push([S('Ticket medio CTe R$'),N(avgCte,2)]);
+      c4.push([S('Ticket medio NFS-e R$'),N(avgNfs,2)]);
+      c4.push([S('Total OJI R$'),N(totOji,2)]);
+      c4.push([S('Rotas frete'),N((FRETE||[]).length)]);
 
-      var xml='<?xml version="1.0" encoding="UTF-8"?>\n'
-        +'<?mso-application progid="Excel.Sheet"?>\n'
-        +'<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" '
-        +'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" '
-        +'xmlns:x="urn:schemas-microsoft-com:office:excel">\n'
-        +'<Styles>'
-        +'<Style ss:ID="h"><Font ss:Bold="1"/><Interior ss:Color="#1c1917" ss:Pattern="Solid"/><Font ss:Color="#ffffff" ss:Bold="1"/></Style>'
-        +'</Styles>\n'
-        +sheet('Consolidado',s1)
-        +sheet('Pagamentos OJI',s2)
-        +sheet('Tabela de Frete',s3)
-        +sheet('Piso ANTT',s4)
-        +'</Workbook>';
+      // ── ABA 5: PISO ANTT ──
+      var c5=[[H('Veiculo'),H('CC R$'),H('CCD R$/km')]];
+      ['pickup','truck','carreta'].forEach(function(v){var c=coef[v]||{cc:0,ccd:0};c5.push([S(v),N(c.cc||0,2),N(c.ccd||0,2)]);});
 
+      var xlsx=_buildXLSX([
+        {name:'Consolidado',rows:c1},
+        {name:'Pagamentos OJI',rows:c2},
+        {name:'Tabela de Frete',rows:c3},
+        {name:'Dashboard',rows:c4},
+        {name:'Piso ANTT',rows:c5}
+      ]);
       var agora=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
-      var blob=new Blob([xml],{type:'application/vnd.ms-excel;charset=utf-8'});
+      var blob=new Blob([xlsx],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
       var url=URL.createObjectURL(blob);
-      var a=document.createElement('a');
-      a.href=url; a.download='pagamentos_'+agora+'.xls';
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(url);
-    }catch(e){ alert('Erro ao exportar: '+e.message); }
+      var a=document.createElement('a');a.href=url;a.download='pagamentos_'+agora+'.xlsx';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+    }catch(e){alert('Erro ao exportar: '+e.message+'\n'+e.stack);}
   });
 }
 
