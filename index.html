@@ -3346,9 +3346,12 @@ function exportarExcel(){
       var c1=[[H('Nº Doc'),H('Tipo'),H('Emissão'),H('Vencimento'),H('Pagamento'),H('Valor R$'),H('Veículo'),H('Status')]];
       var rn=2;
       CONS.forEach(function(r){
-        var vencF='IF(C'+rn+'="","",IF(DAY(C'+rn+')<=10,DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+1,10),IF(DAY(C'+rn+')<=20,DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+1,20),IF(DAY(C'+rn+')<=30,DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+1,30),DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+2,10)))))';
+        // Vencimento: regra dekadio igual ao sistema (dia<=10→10, <=20→20, >20→30 do mes seguinte)
+        var vencF='IF(C'+rn+'="","",IF(DAY(C'+rn+')<=10,DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+1,10),IF(DAY(C'+rn+')<=20,DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+1,20),DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+1,30))))';
+        // Pagamento: busca data em Pagamentos OJI pelo numero do documento
         var pgtoF="IFERROR(VLOOKUP(A"+rn+",'Pagamentos OJI'!A:B,2,0),\"\")";
-        var stF='IF(E'+rn+'="",IF(D'+rn+'<TODAY(),"Vencido","A vencer"),IF(E'+rn+'>D'+rn+',"Pago c/ atraso","Pago em dia"))';
+        // Status: igual ao sistema com tolerancia de 5 dias
+        var stF='IF(D'+rn+'="","Sem vencimento",IF(E'+rn+'="",IF(D'+rn+'<TODAY(),"Vencido","A vencer"),IF(E'+rn+'<=D'+rn+'+5,"Pago em dia","Pago c/ atraso")))';
         c1.push([S(r.doc),S(r.tipo),D(r.em,3),F(vencF,_ser(r.venc),3,'n'),F(pgtoF,_ser(r.pgto),3,r.pgto?'n':'str'),N(r.val,2),S(r.vei||''),F(stF,r.stLbl||'')]);
         rn++;
       });
