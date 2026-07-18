@@ -3235,6 +3235,11 @@ function _buildXLSX(sheets){
     });
     x+='</sheetData>';
     if(sh.cfs){sh.cfs.forEach(function(cf){x+=cf;});}
+    if(sh.dvs&&sh.dvs.length){
+      x+='<dataValidations count="'+sh.dvs.length+'">';
+      sh.dvs.forEach(function(dv){x+='<dataValidation type="list" sqref="'+dv.sqref+'" showDropDown="0" allowBlank="1"><formula1>"'+dv.list+'"</formula1></dataValidation>';});
+      x+='</dataValidations>';
+    }
     return x+'</worksheet>';
   }
 
@@ -3443,45 +3448,68 @@ function exportarExcel(){
       var c5=[[H('Veiculo'),H('CC R$'),H('CCD R$/km')]];
       ['pickup','truck','carreta'].forEach(function(v){var c=coef[v]||{cc:0,ccd:0};c5.push([S(v),N(c.cc||0,2),N(c.ccd||0,2)]);});
 
-      // ── ABA 6: LANÇAMENTOS ──
-      // Aba de entrada de dados: novos documentos e pagamentos
-      // Formulas iguais ao sistema (vencimento dekádio, status com dias)
-      var NDOC=50; // linhas para novos documentos
-      var NPAG=50; // linhas para novos pagamentos
-      // Layout: linhas 1-2 = título+cabeçalho docs, 3..(2+NDOC) = dados docs
-      // linha (3+NDOC) = separador, (4+NDOC) = título pagamentos, (5+NDOC) = cabeçalho pagamentos
-      // (6+NDOC)..(5+NDOC+NPAG) = dados pagamentos
-      var docStart=3;           // primeira linha de dados de documentos
-      var pagTitleRow=docStart+NDOC+1; // linha do título de pagamentos
-      var pagHdrRow=pagTitleRow+1;     // linha do cabeçalho de pagamentos
-      var pagStart=pagHdrRow+1;        // primeira linha de dados de pagamentos
-      var pagEndRow=pagStart+NPAG-1;
-      // referências para VLOOKUP na mesma aba (coluna A = doc, col B = data pag)
-      var pagRangeA='$A$'+pagStart+':$B$'+pagEndRow;
-
+      // ── ABA 6: LANÇAMENTOS (FORMULÁRIO) ──
+      // Formulário vertical: campo por linha, calculados automáticos
+      // + tabela acumuladora abaixo onde o usuário cola os lançamentos confirmados
+      // Estilos de entrada: s=4 (amarelo) para campos editáveis
+      //                     s=12 (cinza) para campos calculados / read-only
+      // Linha de tabela: começa em tblStart (após formulário + separador)
+      var NTBL=100; // linhas disponíveis na tabela acumuladora
+      // Fórmulas do formulário referenciam B3..B7 (campos de entrada)
+      // B3=Nº Doc, B4=Tipo, B5=Emissão, B6=Valor R$, B7=Veículo
+      // B9=Vencimento(calc), B10=Pagamento(calc), B11=Status(calc)
+      var vencFrm='IF(B5="","",IF(DAY(B5)<=10,DATE(YEAR(B5),MONTH(B5)+1,10),IF(DAY(B5)<=20,DATE(YEAR(B5),MONTH(B5)+1,20),DATE(YEAR(B5),MONTH(B5)+1,30))))';
+      var pgtoFrm="IF(B3=\"\",\"\",IFERROR(VLOOKUP(B3,'Pagamentos OJI'!A:B,2,0),\"\"))";
+      var stFrm='IF(B9="","",IF(B10="",IF(B9<TODAY(),"Vencido ("&INT(TODAY()-B9)&"d)","A vencer ("&INT(B9-TODAY())&"d)"),IF(B10<=B9,"Pago em dia",IF(B10<=B9+5,"Pago em dia (tol. "&INT(B10-B9)&"d)","Pago c/ atraso ("&INT(B10-B9)&"d)"))))';
+      // Fórmulas da tabela acumuladora (col A=doc, B=tipo, C=emissão, D=valor, E=veículo, F=venc, G=pgto, H=status)
+      var tblStart=16; // primeira linha de dados da tabela (linha 16)
+      var tblEnd=tblStart+NTBL-1;
       var c6=[];
-      // Título seção documentos
-      c6.push([S('NOVOS DOCUMENTOS',1),S(''),S(''),S(''),S(''),S(''),S(''),S('')]);
-      // Cabeçalho documentos
-      c6.push([H('Nº Doc'),H('Tipo'),H('Emissão'),H('Valor R$'),H('Veículo'),H('Vencimento'),H('Pagamento'),H('Status')]);
-      // Linhas em branco com fórmulas (cols F=6, G=7, H=8 → índices 0-based: 5,6,7)
-      for(var di=0;di<NDOC;di++){
-        var lr=docStart+di; // linha real (1-based)
-        var vencFL='IF(C'+lr+'="","",IF(DAY(C'+lr+')<=10,DATE(YEAR(C'+lr+'),MONTH(C'+lr+')+1,10),IF(DAY(C'+lr+')<=20,DATE(YEAR(C'+lr+'),MONTH(C'+lr+')+1,20),DATE(YEAR(C'+lr+'),MONTH(C'+lr+')+1,30))))';
-        var pgtoFL='IF(A'+lr+'="","",IFERROR(VLOOKUP(A'+lr+','+pagRangeA+',2,0),IFERROR(VLOOKUP(A'+lr+",\\'Pagamentos OJI\\'!A:B,2,0),\"\")))";
-        var stFL='IF(AND(A'+lr+'="",C'+lr+'=""),"",IF(F'+lr+'="","Sem vencimento",IF(G'+lr+'="",IF(F'+lr+'<TODAY(),"Vencido ("&INT(TODAY()-F'+lr+')&"d)","A vencer ("&INT(F'+lr+'-TODAY())&"d)"),IF(G'+lr+'<=F'+lr+',"Pago em dia",IF(G'+lr+'<=F'+lr+'+5,"Pago em dia (tol. "&INT(G'+lr+'-F'+lr+')&"d)","Pago c/ atraso ("&INT(G'+lr+'-F'+lr+')&"d)"))))))';
-        c6.push([S(''),S(''),S(''),S(''),S(''),F(vencFL,0,3,'n'),F(pgtoFL,0,3,'n'),F(stFL,'','str')]);
+      // Linha 1: título
+      c6.push([S('FORMULÁRIO DE LANÇAMENTO',1),S(''),S('')]);
+      // Linha 2: instrução
+      c6.push([S('Preencha os campos em amarelo. Os campos cinza são calculados automaticamente.',12),S(''),S('')]);
+      // Linha 3: Nº Documento
+      c6.push([S('Nº Documento',0),S('',4),S('')]);
+      // Linha 4: Tipo
+      c6.push([S('Tipo',0),S('',4),S('← CTe ou NFSe')]);
+      // Linha 5: Data Emissão
+      c6.push([S('Data Emissão',0),S('',4),S('← formato DD/MM/AAAA')]);
+      // Linha 6: Valor R$
+      c6.push([S('Valor R$',0),S('',4),S('')]);
+      // Linha 7: Veículo
+      c6.push([S('Veículo',0),S('',4),S('← pickup, truck ou carreta')]);
+      // Linha 8: separador
+      c6.push([S(''),S(''),S('')]);
+      // Linha 9: Vencimento (calculado)
+      c6.push([S('Vencimento',0),F(vencFrm,0,3,'n'),S('← calculado pelo sistema (regra dekádio)')]);
+      // Linha 10: Pagamento OJI (calculado)
+      c6.push([S('Pagamento OJI',0),F(pgtoFrm,0,3,'n'),S('← busca data paga em Pagamentos OJI')]);
+      // Linha 11: Status (calculado)
+      c6.push([S('Status',0),F(stFrm,'','str'),S('← calculado igual ao sistema')]);
+      // Linha 12: separador
+      c6.push([S(''),S(''),S('')]);
+      // Linha 13: instrução tabela
+      c6.push([S('Após conferir os dados acima, copie a linha B3:B11 e cole como VALORES na tabela abaixo (Ctrl+C → colar especial → Valores).',12),S(''),S('')]);
+      // Linha 14: separador
+      c6.push([S(''),S(''),S('')]);
+      // Linha 15: cabeçalho da tabela acumuladora
+      c6.push([H('Nº Doc'),H('Tipo'),H('Emissão'),H('Valor R$'),H('Veículo'),H('Vencimento'),H('Pagamento OJI'),H('Status')]);
+      // Linhas da tabela (tblStart=16 .. tblEnd)
+      for(var ti=0;ti<NTBL;ti++){
+        var tr=tblStart+ti;
+        var vTbl='IF(C'+tr+'="","",IF(DAY(C'+tr+')<=10,DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+1,10),IF(DAY(C'+tr+')<=20,DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+1,20),DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+1,30))))';
+        var gTbl="IF(A"+tr+"=\"\",\"\",IFERROR(VLOOKUP(A"+tr+",'Pagamentos OJI'!A:B,2,0),\"\"))";
+        var hTbl='IF(AND(A'+tr+'="",C'+tr+'=""),"",IF(F'+tr+'="","Sem vencimento",IF(G'+tr+'="",IF(F'+tr+'<TODAY(),"Vencido ("&INT(TODAY()-F'+tr+')&"d)","A vencer ("&INT(F'+tr+'-TODAY())&"d)"),IF(G'+tr+'<=F'+tr+',"Pago em dia",IF(G'+tr+'<=F'+tr+'+5,"Pago em dia (tol. "&INT(G'+tr+'-F'+tr+')&"d)","Pago c/ atraso ("&INT(G'+tr+'-F'+tr+')&"d)"))))))';
+        c6.push([S(''),S(''),S(''),S(''),S(''),F(vTbl,0,3,'n'),F(gTbl,0,3,'n'),F(hTbl,'','str')]);
       }
-      // Separador
-      c6.push([S(''),S(''),S(''),S(''),S(''),S(''),S(''),S('')]);
-      // Título seção pagamentos
-      c6.push([S('NOVOS PAGAMENTOS OJI',1),S(''),S('')]);
-      // Cabeçalho pagamentos
-      c6.push([H('Documento'),H('Data Pagamento'),H('Valor R$')]);
-      // Linhas em branco para pagamentos
-      for(var pi=0;pi<NPAG;pi++){
-        c6.push([S(''),S(''),S('')]);
-      }
+      // Data validations: Tipo e Veículo no formulário e na tabela
+      var c6dvs=[
+        {sqref:'B4',             list:'CTe,NFSe'},
+        {sqref:'B7',             list:'pickup,truck,carreta'},
+        {sqref:'B'+tblStart+':B'+tblEnd, list:'CTe,NFSe'},
+        {sqref:'E'+tblStart+':E'+tblEnd, list:'pickup,truck,carreta'}
+      ];
 
       var xlsx=_buildXLSX([
         {name:'Consolidado',rows:c1,cfs:[cf1]},
@@ -3489,7 +3517,7 @@ function exportarExcel(){
         {name:'Tabela de Frete',rows:c3,cfs:[cf3]},
         {name:'Dashboard',rows:c4},
         {name:'Piso ANTT',rows:c5},
-        {name:'Lancamentos',rows:c6}
+        {name:'Lancamentos',rows:c6,dvs:c6dvs}
       ]);
       var agora=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
       var blob=new Blob([xlsx],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
