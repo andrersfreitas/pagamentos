@@ -413,11 +413,20 @@ body.modo-consulta .mtab{pointer-events:none}
 [data-theme="dark"] [style*="background:#f5f5f4"]{background:#292524!important}
 [data-theme="dark"] [style*="background:#fafaf9"]{background:#0c0a09!important}
 [data-theme="dark"] [style*="background:#e7e5e4"]{background:#44403c!important}
-[data-theme="dark"] [style*="background:#fee2e2"]{background:#3b0f0f!important}
-[data-theme="dark"] [style*="background:#fef3c7"]{background:#2d1e00!important}
-[data-theme="dark"] [style*="background:#dbeafe"]{background:#0d1e3d!important}
-[data-theme="dark"] [style*="background:#dcfce7"]{background:#052d13!important}
-[data-theme="dark"] [style*="background:#ede9fe"]{background:#1e1035!important}
+[data-theme="dark"] [style*="background:#fee2e2"]{background:#7f1d1d!important}
+[data-theme="dark"] [style*="background:#fee2e2"] *{color:#fca5a5!important}
+[data-theme="dark"] [style*="background:#fef3c7"]{background:#78350f!important}
+[data-theme="dark"] [style*="background:#fef3c7"] *{color:#fde68a!important}
+[data-theme="dark"] [style*="background:#fef9c3"]{background:#78350f!important}
+[data-theme="dark"] [style*="background:#fef9c3"] *{color:#fde68a!important}
+[data-theme="dark"] [style*="background:#ffedd5"]{background:#7c2d12!important}
+[data-theme="dark"] [style*="background:#ffedd5"] *{color:#fdba74!important}
+[data-theme="dark"] [style*="background:#dbeafe"]{background:#1e3a8a!important}
+[data-theme="dark"] [style*="background:#dbeafe"] *{color:#93c5fd!important}
+[data-theme="dark"] [style*="background:#dcfce7"]{background:#14532d!important}
+[data-theme="dark"] [style*="background:#dcfce7"] *{color:#86efac!important}
+[data-theme="dark"] [style*="background:#ede9fe"]{background:#4c1d95!important}
+[data-theme="dark"] [style*="background:#ede9fe"] *{color:#c4b5fd!important}
 [data-theme="dark"] [style*="border-bottom:1px solid #e7e5e4"]{border-bottom-color:#44403c!important}
 [data-theme="dark"] [style*="border-bottom:2px solid #e7e5e4"]{border-bottom-color:#44403c!important}
 [data-theme="dark"] [style*="border-top:1px solid #e7e5e4"]{border-top-color:#44403c!important}
@@ -4920,7 +4929,7 @@ function renderFrotas(){
   var resumo = document.getElementById('frotas-resumo');
   if(!tbody) return;
 
-  var cores = {pickup:'#854d0e;background:#fef9c3', truck:'#9a3412;background:#ffedd5', carreta:'#1e40af;background:#dbeafe'};
+  var cores = {pickup:'#5b21b6;background:#ede9fe', truck:'#1d4ed8;background:#dbeafe', carreta:'#92400e;background:#fef3c7'};
   var nomes = {pickup:'Pickup', truck:'Truck', carreta:'Carreta'};
 
   // Resumo por tipo
