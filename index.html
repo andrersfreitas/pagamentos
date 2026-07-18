@@ -3318,29 +3318,39 @@ function exportarExcel(){
       var _ep=new Date('1899-12-30T00:00:00');
       function _ser(d){return d?Math.round((new Date(d+'T00:00:00')-_ep)/86400000):0;}
 
-      // ── STATS ──
-      var st={ok:0,late:0,due:0,open:0,vOk:0,vLate:0,vDue:0,vOpen:0,tot:0,rec:0};
-      CONS.forEach(function(r){
-        var v=fV(r.val);st.tot+=v;
-        if(r.stKey==='ok'){st.ok++;st.vOk+=v;st.rec+=v;}
-        else if(r.stKey==='late'){st.late++;st.vLate+=v;st.rec+=v;}
-        else if(r.stKey==='due'){st.due++;st.vDue+=v;}
-        else{st.open++;st.vOpen+=v;}
-      });
+      // ── STATS — mesma lógica do renderDashboard() ──
+      var tval=0,pval=0,tok=0,tlate=0,tdue=0,topen=0,pmrSoma=0,pmrN=0;
+      var vOk=0,vLate=0,vDue=0,vOpen=0;
+      var tickCte=0,nCte=0,tickNfs=0,nNfs=0;
       var todayMs=new Date().setHours(0,0,0,0);
-      var hoje=new Date(todayMs),em30=new Date(todayMs+30*86400000);
-      var v30=CONS.filter(function(r){if(r.pgto||!r.venc)return false;var vd=new Date(r.venc+'T00:00:00');return vd>=hoje&&vd<=em30;});
+      var hojeD=new Date(todayMs);
+      CONS.forEach(function(r){
+        var v=fV(r.val); tval+=v;
+        if(r.pgto) pval+=v;
+        if(r.tipo==='CTe'){tickCte+=v;nCte++;}else{tickNfs+=v;nNfs++;}
+        if(r.stKey==='ok'){tok++;vOk+=v;
+          if(r.em&&r.pgto){var d=Math.round((new Date(r.pgto+'T00:00:00')-new Date(r.em+'T00:00:00'))/86400000);if(d>=0){pmrSoma+=d;pmrN++;}}
+        }else if(r.stKey==='late'){tlate++;vLate+=v;
+          if(r.em&&r.pgto){var d=Math.round((new Date(r.pgto+'T00:00:00')-new Date(r.em+'T00:00:00'))/86400000);if(d>=0){pmrSoma+=d;pmrN++;}}
+        }else if(r.stKey==='due'){tdue++;vDue+=v;}
+        else{topen++;vOpen+=v;}
+      });
+      var pmr=pmrN>0?Math.round(pmrSoma/pmrN):0;
+      var txInad=CONS.length>0?(tdue/CONS.length*100).toFixed(1)+'%':'0%';
+      var pctRec=tval>0?Math.round(pval/tval*100)+'%':'0%';
+      var avgCte=nCte?tickCte/nCte:0;
+      var avgNfs=nNfs?tickNfs/nNfs:0;
+      // Vence em 30d: stKey==='open' e venc entre 0 e 30 dias a partir de hoje
+      var v30=CONS.filter(function(r){
+        if(r.stKey!=='open'||!r.venc)return false;
+        var dias=Math.round((new Date(r.venc+'T00:00:00')-hojeD)/86400000);
+        return dias>=0&&dias<=30;
+      });
       var v30val=v30.reduce(function(a,r){return a+fV(r.val);},0);
-      var paidD=CONS.filter(function(r){return r.pgto&&r.em;});
-      var pmr=paidD.length?Math.round(paidD.reduce(function(a,r){return a+Math.max(0,Math.round((new Date(r.pgto+'T00:00:00')-new Date(r.em+'T00:00:00'))/86400000));},0)/paidD.length):0;
+      // Aging: docs vencidos (stKey==='due')
       var aging=[{l:'1 - 15 dias',mn:1,mx:15,d:0,v:0},{l:'16 - 30 dias',mn:16,mx:30,d:0,v:0},{l:'31 - 60 dias',mn:31,mx:60,d:0,v:0},{l:'+ 60 dias',mn:61,mx:9999,d:0,v:0}];
       CONS.forEach(function(r){if(r.stKey!=='due'||!r.venc)return;var dias=Math.round((todayMs-new Date(r.venc+'T00:00:00'))/86400000);aging.forEach(function(a){if(dias>=a.mn&&dias<=a.mx){a.d++;a.v+=fV(r.val);}});});
-      var cteV=CONS.filter(function(r){return r.tipo==='CTe';}),nfsV=CONS.filter(function(r){return r.tipo==='NFS-e';});
-      var avgCte=cteV.length?cteV.reduce(function(a,r){return a+fV(r.val);},0)/cteV.length:0;
-      var avgNfs=nfsV.length?nfsV.reduce(function(a,r){return a+fV(r.val);},0)/nfsV.length:0;
       var totOji=PAG_OJI.reduce(function(a,r){return a+fV(r.valor);},0);
-      var pctRec=st.tot>0?((st.rec/st.tot)*100).toFixed(1)+'%':'0%';
-      var pctInad=CONS.length>0?((st.due/CONS.length)*100).toFixed(1)+'%':'0%';
 
       // ── ABA 1: CONSOLIDADO ──
       var c1=[[H('Nº Doc'),H('Tipo'),H('Emissão'),H('Vencimento'),H('Pagamento'),H('Valor R$'),H('Veículo'),H('Status')]];
@@ -3415,19 +3425,16 @@ function exportarExcel(){
         +'<cfRule type="cellIs" operator="lessThan" priority="1" dxfId="5"><formula>0</formula></cfRule>'
         +'</conditionalFormatting>';
 
-      // ── ABA 4: DASHBOARD ──
+      // ── ABA 4: DASHBOARD — mesma lógica do renderDashboard() ──
       var c4=[];
-      // Linha 1: cabecalho de grupos (6 KPIs)
       c4.push([H('TOTAL EMITIDO'),H('TOTAL RECEBIDO'),H('A RECEBER'),H('A VENCER'),H('PAGO C/ ATRASO'),H('% RECEBIDO')]);
-      c4.push([N(st.tot,7),N(st.rec,8),N(st.vDue+st.vOpen,9),N(st.vOpen,10),N(st.late,11),S(pctRec,7)]);
-      c4.push([S(CONS.length+' documentos',12),S((st.ok+st.late)+' documentos',12),S(st.due+' vencido(s)',12),S(st.open+' doc(s)',12),S('de '+(st.ok+st.late)+' pagos',12),S('do volume total',12)]);
+      c4.push([N(tval,7),N(pval,8),N(tval-pval,9),N(vOpen,10),S(String(tlate),11),S(pctRec,7)]);
+      c4.push([S(CONS.length+' documentos',12),S((tok+tlate)+' documentos',12),S(tdue+' vencido(s)',12),S(topen+' doc(s)',12),S('de '+(tok+tlate)+' pagos',12),S('do volume total',12)]);
       c4.push([S(''),S(''),S(''),S(''),S(''),S('')]);
-      // Linha 2: mais KPIs
       c4.push([H('PMR'),H('INADIMPLÊNCIA'),H('VENCE EM 30D'),H('TICKET MÉDIO CTe'),H('TICKET MÉDIO NFS-e'),H('TOTAL OJI')]);
-      c4.push([S(pmr+' dias',7),S(pctInad,9),N(v30val,10),N(avgCte,8),N(avgNfs,8),N(totOji,8)]);
-      c4.push([S('prazo médio',12),S(st.due+' doc(s)',12),S(v30.length+' doc(s)',12),S(cteV.length+' CTe',12),S(nfsV.length+' NFS-e',12),S(PAG_OJI.length+' lançamentos',12)]);
+      c4.push([S(pmr+' dias',7),S(txInad,9),N(v30val,10),N(avgCte,8),N(avgNfs,8),N(totOji,8)]);
+      c4.push([S('prazo médio',12),S(tdue+' doc(s)',12),S(v30.length+' doc(s)',12),S(nCte+' CTe',12),S(nNfs+' NFS-e',12),S(PAG_OJI.length+' lançamentos',12)]);
       c4.push([S(''),S(''),S(''),S(''),S(''),S('')]);
-      // Aging
       c4.push([H('AGING DE RECEBÍVEIS'),H('Docs'),H('Valor R$'),S(''),S(''),S('')]);
       aging.forEach(function(a){c4.push([S(a.l),N(a.d),N(a.v,2),S(''),S(''),S('')]);});
 
