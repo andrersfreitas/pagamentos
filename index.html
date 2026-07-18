@@ -564,6 +564,10 @@ body.modo-consulta .mtab{pointer-events:none}
 <!-- PAGAMENTOS OJI -->
 <div id="page-oji" class="page">
   <div class="cards" id="cards-oji"></div>
+  <div class="panel" style="padding:20px;margin-bottom:16px">
+    <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:12px">Pagamentos por data</div>
+    <div id="oji-resumo-datas" style="overflow-x:auto"></div>
+  </div>
   <div class="panel">
     <div class="filters">
       <div class="fg" id="fg-ojimes">
@@ -1375,6 +1379,36 @@ function renderO(){
   document.getElementById('cards-oji').innerHTML=
     mkC('','Lan\u00e7amentos',oS.fil.length,'no filtro atual')+
     mkC('danger','Total pago',fR(tP),pg2.length+' pagamento(s)');
+  renderOjiResumoDatas();
+}
+
+function renderOjiResumoDatas(){
+  var el=document.getElementById('oji-resumo-datas');
+  if(!el) return;
+  // Usa PAG_OJI completo (n\u00e3o filtrado) agrupado por data
+  var porData={};
+  PAG_OJI.forEach(function(r){
+    if(r.valor>=0) return; // s\u00f3 pagamentos
+    var d=r.data||'';
+    if(!porData[d]) porData[d]={val:0,n:0};
+    porData[d].val+=Math.abs(r.valor);
+    porData[d].n++;
+  });
+  var datas=Object.keys(porData).filter(function(d){return d;}).sort();
+  if(!datas.length){el.innerHTML='<span style="font-size:13px;color:#a8a29e">Nenhum pagamento registrado.</span>';return;}
+  var html='<div style="display:flex;flex-wrap:wrap;gap:8px">';
+  datas.forEach(function(d){
+    var v=porData[d];
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:#f5f5f4;border-radius:8px;min-width:180px">'
+      +'<div>'
+        +'<div style="font-size:12px;color:#78716c;font-weight:500">'+fD(d)+'</div>'
+        +'<div style="font-size:14px;font-weight:700;color:#1c1917;font-variant-numeric:tabular-nums">'+fR(v.val)+'</div>'
+        +'<div style="font-size:11px;color:#a8a29e">'+v.n+' doc(s)</div>'
+      +'</div>'
+    +'</div>';
+  });
+  html+='</div>';
+  el.innerHTML=html;
 }
 
 // ── PAGINAÇÃO ──
@@ -3931,6 +3965,44 @@ function verificarLogin(){
   interceptArray(PAG_OJI);
 })();
 
+// Correção pontual: 10 registros com valor divergente entre CONS e PAG_OJI
+var _FIXES_OJI=[
+  {id:'cc02ccd5-6b97-4ada-86ee-1bdfa831f790',doc:8802,valor:-1694.61},
+  {id:'b127c08b-5b0b-4fc8-b07f-eab8bd667aac',doc:8806,valor:-1108.93},
+  {id:'8f4630e6-20ab-4e71-a1d6-1a62a940300f',doc:8820,valor:-1694.61},
+  {id:'03e8dd42-886f-4978-bcea-b5ecb19b6d92',doc:8823,valor:-1219.4},
+  {id:'4f0b23ca-7021-4365-8c47-3d320ab4733e',doc:2,valor:-150.86},
+  {id:'7e6a5907-542c-49c8-8f51-337f2e693bfe',doc:3,valor:-150.86},
+  {id:'ebf1ebc4-2ca1-4751-b884-88170bc88c01',doc:4,valor:-150.86},
+  {id:'04a577cf-9386-4143-9df2-8ef6d2374c80',doc:9,valor:-150.86},
+  {id:'fd0202cb-beed-4bb4-857c-fe998f29ad14',doc:10,valor:-150.86},
+  {id:'d9e9841a-a594-4f84-afd5-e0551ce6f175',doc:16,valor:-150.86}
+];
+function corrigirDivergenciasOji(){
+  if(!_sbOnline) return;
+  var promises=[];
+  _FIXES_OJI.forEach(function(fix){
+    var reg=PAG_OJI.find(function(r){return r.id===fix.id;});
+    if(!reg || Math.abs(reg.valor - fix.valor) < 0.01) return; // já correto
+    promises.push(
+      sbFetch('pagamentos_oji?id=eq.'+fix.id,{
+        method:'PATCH',
+        headers:Object.assign({},sbHeaders(),{'Prefer':'return=minimal'}),
+        body:JSON.stringify({valor:fix.valor})
+      }).then(function(){
+        reg.valor=fix.valor;
+      })
+    );
+  });
+  if(promises.length){
+    Promise.all(promises).then(function(){
+      afOji();
+      renderDashboard();
+      console.log('Divergências OJI corrigidas ('+promises.length+' registros).');
+    });
+  }
+}
+
 function _iniciarApp(){
   carregarDados().then(function(){
     if(typeof rebuildConsMesFilter==='function') rebuildConsMesFilter();
@@ -3939,6 +4011,7 @@ function _iniciarApp(){
     if(typeof rebuildOjiMesFilter==='function') rebuildOjiMesFilter();
     if(typeof rebuildOjiAnoFilter==='function') rebuildOjiAnoFilter();
     afOji();
+    corrigirDivergenciasOji();
     carregarFrotas().then(function(){
       renderDashboard();
       updateHomeCards();
