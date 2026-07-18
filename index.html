@@ -2639,25 +2639,31 @@ function renderDashboard(){
   funHTML+='</div>';
   document.getElementById('chart-funil').innerHTML=funHTML;
 
-  // ── Próximos vencimentos (3, só data + valor) ──
-  var prox3=proxDocs.slice(0,3);
+  // ── Próximos vencimentos (3 datas únicas agrupadas) ──
+  var proxPorData={};
+  proxDocs.forEach(function(r){
+    if(!proxPorData[r.venc])proxPorData[r.venc]=0;
+    proxPorData[r.venc]+=r.val;
+  });
+  var proxDatas=Object.keys(proxPorData).sort().slice(0,3);
   var proxHTML='';
-  if(!prox3.length){
+  if(!proxDatas.length){
     proxHTML='<div style="padding:24px;text-align:center;color:#a8a29e;font-size:13px">Nenhum documento a vencer</div>';
   } else {
     proxHTML='<div style="display:flex;flex-direction:column">';
-    prox3.forEach(function(r){
-      var diasR=Math.round((new Date(r.venc+'T00:00:00')-hoje)/86400000);
+    proxDatas.forEach(function(venc){
+      var diasR=Math.round((new Date(venc+'T00:00:00')-hoje)/86400000);
       var urgCol=diasR<=7?'#dc2626':diasR<=15?'#d97706':'#2563eb';
       proxHTML+='<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #f5f5f4">'
-        +'<span style="font-size:14px;font-weight:600;color:#1c1917">'+fD(r.venc)+'</span>'
-        +'<span style="font-size:14px;font-weight:700;color:'+urgCol+';font-variant-numeric:tabular-nums">'+fR(r.val)+'</span>'
+        +'<span style="font-size:14px;font-weight:600;color:#1c1917">'+fD(venc)+'</span>'
+        +'<span style="font-size:14px;font-weight:700;color:'+urgCol+';font-variant-numeric:tabular-nums">'+fR(proxPorData[venc])+'</span>'
         +'</div>';
     });
     proxHTML+='</div>';
-    if(proxDocs.length>3){
+    var totalDatas=Object.keys(proxPorData).length;
+    if(totalDatas>3){
       proxHTML+='<div style="text-align:center;margin-top:10px;padding-top:10px;border-top:1px solid #f5f5f4">'
-        +'<span style="font-size:11px;color:#2563eb;font-weight:600;cursor:pointer" onclick="irParaConsolidado([\'open\'])">Ver todos ('+proxDocs.length+') &#x2192;</span>'
+        +'<span style="font-size:11px;color:#2563eb;font-weight:600;cursor:pointer" onclick="irParaConsolidado([\'open\'])">Ver todos ('+totalDatas+' datas) &#x2192;</span>'
         +'</div>';
     }
   }
@@ -2816,7 +2822,7 @@ function dkpi(cls,lbl,val,sub,oc){
 }
 
 function irParaConsolidado(statusKeys,veicKeys){
-  // clear all filters first
+  // aplica filtros antes de navegar
   ['status','veiculo','tipo','mes'].forEach(function(id){
     document.querySelectorAll('#ms-'+id+' input').forEach(function(c){c.checked=false;});
     msChecked[id]=[];updLbl(id);
@@ -2833,6 +2839,7 @@ function irParaConsolidado(statusKeys,veicKeys){
     });
     msChecked['veiculo']=veicKeys;updLbl('veiculo');
   }
+  af();
   showTab('consolidado');
 }
 
@@ -3932,8 +3939,10 @@ function _iniciarApp(){
     if(typeof rebuildOjiMesFilter==='function') rebuildOjiMesFilter();
     if(typeof rebuildOjiAnoFilter==='function') rebuildOjiAnoFilter();
     afOji();
-    renderDashboard();
-    updateHomeCards();
+    carregarFrotas().then(function(){
+      renderDashboard();
+      updateHomeCards();
+    });
   });
 }
 
