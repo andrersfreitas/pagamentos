@@ -716,6 +716,7 @@ body.modo-consulta .mtab{pointer-events:none}
   <div class="cards" id="cards-oji"></div>
   <div class="panel" style="padding:20px;margin-bottom:16px">
     <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:12px">Pagamentos por data</div>
+    <div id="oji-resumo-topo" style="margin-bottom:14px"></div>
     <div id="oji-resumo-datas" style="overflow-x:auto"></div>
   </div>
   <div class="panel">
@@ -1535,15 +1536,28 @@ function renderO(){
 var _ojiAccOpen=null;
 function renderOjiResumoDatas(){
   var el=document.getElementById('oji-resumo-datas');
+  var elTopo=document.getElementById('oji-resumo-topo');
   if(!el) return;
-  var porData={};
+  // Realizado: pagamentos efetivos no OJI por data
+  var realData={};
   PAG_OJI.forEach(function(r){
     if(r.valor>=0) return;
     var d=r.data||''; if(!d) return;
-    if(!porData[d]) porData[d]={val:0,n:0};
-    porData[d].val+=Math.abs(r.valor); porData[d].n++;
+    if(!realData[d]) realData[d]={val:0,n:0};
+    realData[d].val+=Math.abs(r.valor); realData[d].n++;
   });
-  var datas=Object.keys(porData).sort();
+  // Previsto: soma de CONS por data de vencimento
+  var prevData={};
+  CONS.forEach(function(r){
+    var d=r.venc||''; if(!d) return;
+    if(!prevData[d]) prevData[d]=0;
+    prevData[d]+=r.val;
+  });
+  // Uni\u00e3o de datas
+  var todasDatas={};
+  Object.keys(realData).forEach(function(d){ todasDatas[d]=true; });
+  Object.keys(prevData).forEach(function(d){ todasDatas[d]=true; });
+  var datas=Object.keys(todasDatas).sort();
   if(!datas.length){el.innerHTML='<p style="font-size:13px;color:#a8a29e;padding:4px 0">Nenhum pagamento registrado.</p>';return;}
   // Agrupar por m\u00eas
   var meses={};
@@ -1553,42 +1567,89 @@ function renderOjiResumoDatas(){
     meses[m].push(d);
   });
   var mesKeys=Object.keys(meses).sort().reverse();
-  // Inicializar apenas na primeira vez (null = ainda n\u00e3o inicializado)
-  if(_ojiAccOpen===null){
-    _ojiAccOpen={};
-    mesKeys.slice(0,2).forEach(function(m){ _ojiAccOpen[m]=true; });
+  // Inicializar todos recolhidos na primeira vez
+  if(_ojiAccOpen===null){ _ojiAccOpen={}; }
+  // Totais gerais para os cards do topo
+  var totPrev=0,totReal=0;
+  datas.forEach(function(d){ totPrev+=(prevData[d]||0); totReal+=(realData[d]?realData[d].val:0); });
+  var totSaldo=totReal-totPrev;
+  var corSaldo=totSaldo>=0?'#16a34a':'#dc2626';
+  var sinSaldo=totSaldo>=0?'+ ':'\u2212 ';
+  if(elTopo){
+    elTopo.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">'
+      +'<div style="background:#fafaf9;border:1px solid #e7e5e4;border-radius:10px;padding:14px 18px" class="oji-topo-card">'
+        +'<div style="font-size:10px;font-weight:600;color:#a8a29e;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Previsto</div>'
+        +'<div style="font-size:17px;font-weight:700;color:#78716c;font-variant-numeric:tabular-nums">'+fR(totPrev)+'</div>'
+      +'</div>'
+      +'<div style="background:#fafaf9;border:1px solid #e7e5e4;border-radius:10px;padding:14px 18px" class="oji-topo-card">'
+        +'<div style="font-size:10px;font-weight:600;color:#a8a29e;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Realizado</div>'
+        +'<div style="font-size:17px;font-weight:700;color:#16a34a;font-variant-numeric:tabular-nums">'+fR(totReal)+'</div>'
+      +'</div>'
+      +'<div style="background:#fafaf9;border:1px solid #e7e5e4;border-radius:10px;padding:14px 18px" class="oji-topo-card">'
+        +'<div style="font-size:10px;font-weight:600;color:#a8a29e;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Saldo</div>'
+        +'<div style="font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;color:'+corSaldo+'">'+sinSaldo+fR(Math.abs(totSaldo))+'</div>'
+      +'</div>'
+    +'</div>';
   }
   var MESES_PT=['Janeiro','Fevereiro','Mar\u00e7o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   function mesLbl(m){ var p=m.split('-'); return MESES_PT[parseInt(p[1],10)-1]+' '+p[0]; }
   var html='';
   mesKeys.forEach(function(m){
     var open=!!_ojiAccOpen[m];
-    var totalMes=meses[m].reduce(function(a,d){return a+porData[d].val;},0);
-    var nMes=meses[m].reduce(function(a,d){return a+porData[d].n;},0);
+    var mPrev=meses[m].reduce(function(a,d){return a+(prevData[d]||0);},0);
+    var mReal=meses[m].reduce(function(a,d){return a+(realData[d]?realData[d].val:0);},0);
+    var mSaldo=mReal-mPrev;
+    var nMes=meses[m].reduce(function(a,d){return a+(realData[d]?realData[d].n:0);},0);
+    var corMS=mSaldo>=0?'#16a34a':'#dc2626';
+    var sinMS=mSaldo>=0?'+ ':'\u2212 ';
     html+='<div style="border:1px solid #e7e5e4;border-radius:10px;overflow:hidden;margin-bottom:8px" class="oji-acc-bloco">'
       +'<div onclick="toggleOjiAcc(\''+m+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;cursor:pointer;background:#fafaf9" class="oji-acc-hdr">'
         +'<div style="display:flex;align-items:center;gap:10px">'
           +'<span style="font-size:13px;font-weight:600;color:#1c1917">'+mesLbl(m)+'</span>'
           +'<span style="font-size:11px;color:#a8a29e">'+nMes+' doc(s)</span>'
         +'</div>'
-        +'<div style="display:flex;align-items:center;gap:10px">'
-          +'<span style="font-size:13px;font-weight:600;color:#16a34a;font-variant-numeric:tabular-nums">'+fR(totalMes)+'</span>'
+        +'<div style="display:flex;align-items:center;gap:16px">'
+          +'<span style="font-size:12px;color:#78716c;font-variant-numeric:tabular-nums">Prev: '+fR(mPrev)+'</span>'
+          +'<span style="font-size:12px;color:#16a34a;font-variant-numeric:tabular-nums">Real: '+fR(mReal)+'</span>'
+          +'<span style="font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:'+corMS+'">'+sinMS+fR(Math.abs(mSaldo))+'</span>'
           +'<span style="font-size:11px;color:#a8a29e;transition:transform .15s;display:inline-block;transform:'+(open?'rotate(180deg)':'rotate(0deg)')+'">\u25bc</span>'
         +'</div>'
       +'</div>';
     if(open){
-      html+='<div>';
-      meses[m].forEach(function(d,i){
-        var v=porData[d];
-        html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 16px 9px 28px;border-top:1px solid #f5f5f4" class="oji-acc-row">'
-          +'<span style="font-size:13px;color:#78716c">'+fD(d)+'</span>'
-          +'<div style="display:flex;align-items:center;gap:12px">'
-            +'<span style="font-size:13px;font-weight:600;color:#16a34a;font-variant-numeric:tabular-nums">'+fR(v.val)+'</span>'
-            +'<span style="font-size:11px;color:#a8a29e">'+v.n+' doc(s)</span>'
-          +'</div>'
-        +'</div>';
+      html+='<table style="width:100%;border-collapse:collapse">'
+        +'<thead><tr>'
+          +'<th style="font-size:10px;font-weight:600;color:#a8a29e;text-transform:uppercase;letter-spacing:.06em;padding:7px 16px 7px 28px;text-align:left;border-top:1px solid #f5f5f4;background:#fafaf9">Data</th>'
+          +'<th style="font-size:10px;font-weight:600;color:#a8a29e;text-transform:uppercase;letter-spacing:.06em;padding:7px 16px;text-align:right;border-top:1px solid #f5f5f4;background:#fafaf9">Previsto</th>'
+          +'<th style="font-size:10px;font-weight:600;color:#a8a29e;text-transform:uppercase;letter-spacing:.06em;padding:7px 16px;text-align:right;border-top:1px solid #f5f5f4;background:#fafaf9">Realizado</th>'
+          +'<th style="font-size:10px;font-weight:600;color:#a8a29e;text-transform:uppercase;letter-spacing:.06em;padding:7px 16px;text-align:right;border-top:1px solid #f5f5f4;background:#fafaf9">Saldo</th>'
+        +'</tr></thead>'
+        +'<tbody>';
+      meses[m].forEach(function(d){
+        var rv=realData[d]||{val:0,n:0};
+        var pv=prevData[d]||0;
+        var sd=rv.val-pv;
+        var corD=sd>=0?'#16a34a':'#dc2626';
+        var sinD=sd>=0?'+ ':'\u2212 ';
+        html+='<tr class="oji-acc-row">'
+          +'<td style="font-size:13px;color:#78716c;padding:9px 16px 9px 28px;border-top:1px solid #f5f5f4">'
+            +fD(d)+(rv.n?' <span style="font-size:11px;color:#a8a29e">'+rv.n+' doc(s)</span>':'')
+          +'</td>'
+          +'<td style="font-size:13px;color:#78716c;font-weight:500;padding:9px 16px;border-top:1px solid #f5f5f4;text-align:right;font-variant-numeric:tabular-nums">'+fR(pv)+'</td>'
+          +'<td style="font-size:13px;font-weight:600;color:#16a34a;padding:9px 16px;border-top:1px solid #f5f5f4;text-align:right;font-variant-numeric:tabular-nums">'+fR(rv.val)+'</td>'
+          +'<td style="font-size:13px;font-weight:600;padding:9px 16px;border-top:1px solid #f5f5f4;text-align:right;font-variant-numeric:tabular-nums;color:'+corD+'">'+sinD+fR(Math.abs(sd))+'</td>'
+        +'</tr>';
       });
-      html+='</div>';
+      // Rodap\u00e9 do m\u00eas
+      var corMSt=mSaldo>=0?'#16a34a':'#dc2626';
+      var sinMSt=mSaldo>=0?'+ ':'\u2212 ';
+      html+='</tbody>'
+        +'<tfoot><tr>'
+          +'<td style="font-size:12px;font-weight:600;color:#78716c;padding:9px 16px 9px 28px;border-top:1px solid #e7e5e4;background:#fafaf9">Total do m\u00eas</td>'
+          +'<td style="font-size:12px;font-weight:600;color:#78716c;padding:9px 16px;border-top:1px solid #e7e5e4;text-align:right;font-variant-numeric:tabular-nums;background:#fafaf9">'+fR(mPrev)+'</td>'
+          +'<td style="font-size:12px;font-weight:600;color:#16a34a;padding:9px 16px;border-top:1px solid #e7e5e4;text-align:right;font-variant-numeric:tabular-nums;background:#fafaf9">'+fR(mReal)+'</td>'
+          +'<td style="font-size:12px;font-weight:600;padding:9px 16px;border-top:1px solid #e7e5e4;text-align:right;font-variant-numeric:tabular-nums;background:#fafaf9;color:'+corMSt+'">'+sinMSt+fR(Math.abs(mSaldo))+'</td>'
+        +'</tr></tfoot>'
+      +'</table>';
     }
     html+='</div>';
   });
