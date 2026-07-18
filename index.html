@@ -899,6 +899,40 @@ body.modo-consulta .mtab{pointer-events:none}
       <div class="smsg" id="piso-resultado-msg"></div>
     </div>
   </div>
+
+  <div class="panel" style="padding:20px 24px" id="panel-frotas">
+    <h2 style="font-size:15px;margin-bottom:4px">Cadastro de Frotas</h2>
+    <p style="font-size:12px;color:#78716c;margin-bottom:16px">Associe cada placa ao tipo de ve&#xED;culo para agrupar o faturamento no dashboard. A placa tamb&#xE9;m fica dispon&#xED;vel para sele&#xE7;&#xE3;o ao lan&#xE7;ar documentos.</p>
+
+    <div id="frotas-resumo" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px" id="frotas-tabela">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:0 12px 8px 0;font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #e7e5e4;white-space:nowrap">Placa</th>
+            <th style="text-align:left;padding:0 12px 8px 0;font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #e7e5e4">Tipo</th>
+            <th style="text-align:left;padding:0 12px 8px 0;font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #e7e5e4">Descri&#xE7;&#xE3;o</th>
+            <th style="border-bottom:1px solid #e7e5e4;width:80px"></th>
+          </tr>
+        </thead>
+        <tbody id="frotas-tbody"></tbody>
+      </table>
+    </div>
+
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid #e7e5e4" id="frotas-form">
+      <input type="text" id="frota-placa" placeholder="Placa (ex: ABC-1234)" style="height:36px;padding:0 10px;border:1px solid #d6d3d1;border-radius:8px;font-size:13px;width:160px;text-transform:uppercase">
+      <select id="frota-tipo" style="height:36px;padding:0 10px;border:1px solid #d6d3d1;border-radius:8px;font-size:13px;color:#1c1917;background:#fff">
+        <option value="">Tipo...</option>
+        <option value="pickup">Pickup</option>
+        <option value="truck">Truck</option>
+        <option value="carreta">Carreta</option>
+      </select>
+      <input type="text" id="frota-desc" placeholder="Descri&#xE7;&#xE3;o (opcional)" style="height:36px;padding:0 10px;border:1px solid #d6d3d1;border-radius:8px;font-size:13px;flex:1;min-width:140px">
+      <button class="btn btn-dark" onclick="adicionarFrota()">+ Adicionar</button>
+    </div>
+    <div class="smsg" id="msg-frotas"></div>
+  </div>
 </div>
 
 <!-- MODAL ROTA DE FRETE -->
@@ -4527,13 +4561,132 @@ function imprimirRotasFrete(){
 var PISO_COEF = {truck:{cc:null,ccd:null}, carreta:{cc:null,ccd:null}, pickup:{cc:null,ccd:null}};
 var PISO_TABELA = {truck:'A', carreta:'A', pickup:'C'};
 var PISO_EIXOS  = {truck:3, carreta:5, pickup:2};
+var FROTAS = [];
 
 function initPiso(){
   carregarCoefPiso();
+  carregarFrotas();
   var isADM = !document.body.classList.contains('modo-consulta');
   var btn = document.getElementById('btn-salvar-coef-piso');
   if(btn) btn.style.display = isADM ? '' : 'none';
+  var pf = document.getElementById('frotas-form');
+  if(pf) pf.style.display = isADM ? '' : 'none';
 }
+
+// ── FROTAS ────────────────────────────────────────────────
+function carregarFrotas(){
+  if(!_sbOnline){
+    try{ FROTAS = JSON.parse(localStorage.getItem('frotas_cache')) || []; }catch(e){ FROTAS=[]; }
+    renderFrotas();
+    return Promise.resolve();
+  }
+  return sbFetch('frotas?select=*&order=placa.asc')
+  .then(function(r){ return r.ok ? r.json() : []; })
+  .then(function(rows){
+    FROTAS = rows;
+    try{ localStorage.setItem('frotas_cache', JSON.stringify(FROTAS)); }catch(e){}
+    renderFrotas();
+  })
+  .catch(function(e){
+    console.warn('Erro ao carregar frotas, usando cache:', e);
+    try{ FROTAS = JSON.parse(localStorage.getItem('frotas_cache')) || []; }catch(e2){ FROTAS=[]; }
+    renderFrotas();
+  });
+}
+
+function renderFrotas(){
+  var tbody = document.getElementById('frotas-tbody');
+  var resumo = document.getElementById('frotas-resumo');
+  if(!tbody) return;
+
+  var cores = {pickup:'#854d0e;background:#fef9c3', truck:'#9a3412;background:#ffedd5', carreta:'#1e40af;background:#dbeafe'};
+  var nomes = {pickup:'Pickup', truck:'Truck', carreta:'Carreta'};
+
+  // Resumo por tipo
+  var contagem = {pickup:0, truck:0, carreta:0};
+  FROTAS.forEach(function(f){ if(contagem[f.tipo]!==undefined) contagem[f.tipo]++; });
+  resumo.innerHTML = ['pickup','truck','carreta'].map(function(t){
+    if(!contagem[t]) return '';
+    var s=cores[t].split(';background:');
+    return '<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:100px;font-size:12px;color:'+s[0]+';background:'+s[1]+'">'
+      +'<strong>'+contagem[t]+'</strong> '+nomes[t]+(contagem[t]>1?'s':'')+'</span>';
+  }).join('');
+
+  if(!FROTAS.length){
+    tbody.innerHTML = '<tr><td colspan="4" style="padding:16px 0;color:#78716c;font-size:13px">Nenhum ve&#xED;culo cadastrado ainda.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = FROTAS.map(function(f){
+    var s=cores[f.tipo]?cores[f.tipo].split(';background:'):['#78716c','#f5f5f4'];
+    return '<tr>'
+      +'<td style="padding:10px 12px 10px 0;border-bottom:1px solid #f5f5f4;font-weight:600;white-space:nowrap">'+esc(f.placa)+'</td>'
+      +'<td style="padding:10px 12px 10px 0;border-bottom:1px solid #f5f5f4"><span style="padding:2px 10px;border-radius:100px;font-size:12px;font-weight:500;color:'+(s[0]||'#444')+';background:'+(s[1]||'#eee')+'">'+(nomes[f.tipo]||f.tipo)+'</span></td>'
+      +'<td style="padding:10px 12px 10px 0;border-bottom:1px solid #f5f5f4;color:#78716c">'+esc(f.descricao||'')+'</td>'
+      +'<td style="padding:10px 0;border-bottom:1px solid #f5f5f4"><button onclick="removerFrota(\''+esc(f.placa)+'\')" style="height:26px;padding:0 10px;border-radius:6px;border:1px solid #fca5a5;background:#fee2e2;color:#991b1b;font-size:11px;cursor:pointer">Remover</button></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function adicionarFrota(){
+  var placa = (document.getElementById('frota-placa').value||'').trim().toUpperCase();
+  var tipo  = document.getElementById('frota-tipo').value;
+  var desc  = (document.getElementById('frota-desc').value||'').trim();
+  var msg   = document.getElementById('msg-frotas');
+  if(!placa){ msg.textContent='Informe a placa.'; msg.style.color='#dc2626'; return; }
+  if(!tipo){  msg.textContent='Selecione o tipo.'; msg.style.color='#dc2626'; return; }
+  if(FROTAS.some(function(f){ return f.placa===placa; })){
+    msg.textContent='Placa '+placa+' já cadastrada.'; msg.style.color='#dc2626'; return;
+  }
+  msg.textContent='Salvando...'; msg.style.color='#78716c';
+  var nova = {placa:placa, tipo:tipo, descricao:desc};
+  if(!_sbOnline){
+    FROTAS.push(nova);
+    try{ localStorage.setItem('frotas_cache', JSON.stringify(FROTAS)); }catch(e){}
+    renderFrotas();
+    document.getElementById('frota-placa').value='';
+    document.getElementById('frota-tipo').value='';
+    document.getElementById('frota-desc').value='';
+    msg.textContent='✓ '+placa+' adicionado (offline — sincronizará ao conectar).'; msg.style.color='#16a34a';
+    return;
+  }
+  sbFetch('frotas', {
+    method:'POST',
+    headers: Object.assign({}, sbHeaders(), {'Prefer':'resolution=merge-duplicates,return=representation'}),
+    body: JSON.stringify(nova)
+  })
+  .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(function(){
+    FROTAS.push(nova);
+    try{ localStorage.setItem('frotas_cache', JSON.stringify(FROTAS)); }catch(e){}
+    renderFrotas();
+    document.getElementById('frota-placa').value='';
+    document.getElementById('frota-tipo').value='';
+    document.getElementById('frota-desc').value='';
+    msg.textContent='✓ '+placa+' adicionado!'; msg.style.color='#16a34a';
+    setTimeout(function(){ msg.textContent=''; },3000);
+  })
+  .catch(function(e){ msg.textContent='Erro: '+e.message; msg.style.color='#dc2626'; });
+}
+
+function removerFrota(placa){
+  if(!confirm('Remover a placa '+placa+'?')) return;
+  if(!_sbOnline){
+    FROTAS = FROTAS.filter(function(f){ return f.placa!==placa; });
+    try{ localStorage.setItem('frotas_cache', JSON.stringify(FROTAS)); }catch(e){}
+    renderFrotas();
+    return;
+  }
+  sbFetch('frotas?placa=eq.'+encodeURIComponent(placa), {method:'DELETE', headers:sbHeaders()})
+  .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); })
+  .then(function(){
+    FROTAS = FROTAS.filter(function(f){ return f.placa!==placa; });
+    try{ localStorage.setItem('frotas_cache', JSON.stringify(FROTAS)); }catch(e){}
+    renderFrotas();
+  })
+  .catch(function(e){ alert('Erro ao remover: '+e.message); });
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // Coeficientes ANTT — sincronizados com o Supabase (tabela antt_coeficientes)
 // para funcionar igual em qualquer dispositivo, com fallback em cache local
