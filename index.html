@@ -13,6 +13,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .btn-backup{height:34px;padding:0 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:#2563eb;color:#fff;display:flex;align-items:center;gap:6px;transition:all .15s;flex-shrink:0}
 .btn-backup:hover{background:#1d4ed8}
 .btn-backup:disabled{background:#78716c;cursor:not-allowed}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal-box{background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal-title{font-size:17px;font-weight:700;color:#1c1917;margin-bottom:18px}
+.modal-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f4;font-size:14px;color:#44403c}
+.modal-row:last-of-type{border-bottom:none}
+.modal-val{font-weight:600;color:#1c1917}
+.modal-footer{display:flex;gap:10px;margin-top:20px}
+.modal-btn{flex:1;height:40px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer}
+.modal-btn-cancel{background:#f5f5f4;color:#78716c}
+.modal-btn-confirm{background:#2563eb;color:#fff}
 .topbar-sub{font-size:12px;color:#a8a29e}
 .tabs{display:flex;gap:2px;background:#f5f5f4;padding:0 24px;border-bottom:1px solid #e7e5e4;overflow-x:auto}
 .tab{padding:12px 18px;font-size:13px;font-weight:500;color:#78716c;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;user-select:none}
@@ -340,6 +350,10 @@ body.modo-consulta .mtab{pointer-events:none}
   <button onclick="fazerBackup()" id="btn-backup" class="btn-backup btn-acoes-desktop" title="Gerar backup dos dados (.json)">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     Backup
+  </button>
+  <button onclick="backupDrive()" id="btn-drive" class="btn-backup btn-acoes-desktop" title="Backup automático no Google Drive" style="background:#1a73e8">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.28 3l5.72 9.9L6.28 21H2l5.72-9.9L2 3h4.28zm5.44 0h4.28l5.72 9.9L16 21h-4.28l5.72-9.9L11.72 3zm5.44 9.9L22 21h-4.28l-4.44-7.7 1.16-2.3 5 8.67.56-.97-5-8.67 1-1.13z"/></svg>
+    Drive
   </button>
 
   <!-- Menu de três pontinhos — só aparece no mobile -->
@@ -3529,51 +3543,134 @@ function exportarExcel(){
 }
 
 // ── BACKUP JSON + RESTAURAÇÃO ────────────────────────────
-function fazerBackup(){
-  var btn = document.getElementById('btn-backup');
-  btn.textContent = '\u231B Gerando...';
-  btn.disabled = true;
-  var promFrete = (typeof carregarFrete === 'function') ? carregarFrete() : Promise.resolve();
-  var promColetas = (typeof carregarColetas === 'function') ? carregarColetas() : Promise.resolve();
-  Promise.all([promFrete, promColetas]).then(function(){
-    try{
-      CONS.forEach(function(r){ var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.lbl; });
-      var payload = {
-        versao: 2,
-        ts: new Date().toISOString(),
-        gerado: new Date().toLocaleString('pt-BR'),
-        totais: { cons: CONS.length, pag: PAG_OJI.length, frete: FRETE.length },
-        CONS: CONS,
-        PAG_OJI: PAG_OJI,
-        VEICS: VEICS,
-        MC: MC,
-        MO: MO,
-        FRETE: FRETE,
-        COLETAS: COLETAS
-      };
-      var agora = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})
-                + '_' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}).replace(':','-');
-      var nome = 'backup_pagamentos_' + agora + '.json';
-      var blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json;charset=utf-8'});
-      var url  = URL.createObjectURL(blob);
-      var a    = document.createElement('a');
-      a.href = url; a.download = nome;
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+function _buildBackupPayload(){
+  CONS.forEach(function(r){ var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.lbl; });
+  return { versao:2, ts:new Date().toISOString(), gerado:new Date().toLocaleString('pt-BR'),
+    totais:{cons:CONS.length,pag:PAG_OJI.length,frete:FRETE.length},
+    CONS:CONS, PAG_OJI:PAG_OJI, VEICS:VEICS, MC:MC, MO:MO, FRETE:FRETE, COLETAS:COLETAS };
+}
 
-      var ico = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
-      btn.innerHTML = '\u2713 Backup salvo!';
-      btn.style.background = '#16a34a';
-      setTimeout(function(){
-        btn.innerHTML = ico + ' Backup';
-        btn.style.background = '#2563eb';
-        btn.disabled = false;
-      }, 3000);
-    } catch(e){
-      alert('Erro ao gerar backup: ' + e.message);
-      btn.innerHTML = 'Backup'; btn.disabled = false;
-    }
+function fazerBackup(){
+  var promFrete=(typeof carregarFrete==='function')?carregarFrete():Promise.resolve();
+  var promColetas=(typeof carregarColetas==='function')?carregarColetas():Promise.resolve();
+  Promise.all([promFrete,promColetas]).then(function(){
+    try{
+      _buildBackupPayload();
+      var el=document.getElementById('modal-backup');
+      if(!el){el=document.createElement('div');el.id='modal-backup';el.className='modal-overlay';document.body.appendChild(el);}
+      el.innerHTML=
+        '<div class="modal-box">'
+        +'<div class="modal-title">\uD83D\uDCE6 Confirmar Backup</div>'
+        +'<div class="modal-row"><span>Documentos (Consolidado)</span><span class="modal-val">'+CONS.length+'</span></div>'
+        +'<div class="modal-row"><span>Pagamentos OJI</span><span class="modal-val">'+PAG_OJI.length+'</span></div>'
+        +'<div class="modal-row"><span>Fretes</span><span class="modal-val">'+FRETE.length+'</span></div>'
+        +'<div class="modal-row"><span>Data</span><span class="modal-val">'+new Date().toLocaleString('pt-BR')+'</span></div>'
+        +'<div class="modal-footer">'
+        +'<button class="modal-btn modal-btn-cancel" onclick="document.getElementById(\'modal-backup\').style.display=\'none\'">Cancelar</button>'
+        +'<button class="modal-btn modal-btn-confirm" onclick="confirmarBackup()">Baixar Backup</button>'
+        +'</div></div>';
+      el.style.display='flex';
+    }catch(e){alert('Erro: '+e.message);}
+  });
+}
+
+function confirmarBackup(){
+  document.getElementById('modal-backup').style.display='none';
+  var btn=document.getElementById('btn-backup');
+  btn.textContent='\u231B Gerando...'; btn.disabled=true;
+  try{
+    var payload=_buildBackupPayload();
+    var ts=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})
+          +'_'+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}).replace(':','-');
+    var blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a'); a.href=url; a.download='backup_pagamentos_'+ts+'.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    var ico='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+    btn.innerHTML='\u2713 Backup salvo!'; btn.style.background='#16a34a';
+    setTimeout(function(){btn.innerHTML=ico+' Backup';btn.style.background='#2563eb';btn.disabled=false;},3000);
+  }catch(e){alert('Erro ao gerar backup: '+e.message);btn.innerHTML='Backup';btn.disabled=false;}
+}
+
+// \u2500\u2500 BACKUP GOOGLE DRIVE \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+var _driveToken=null;
+
+function backupDrive(){
+  var btn=document.getElementById('btn-drive');
+  var clientId=localStorage.getItem('goog_client_id')||'';
+  if(!clientId){
+    clientId=prompt('Para usar o backup no Google Drive, informe o Client ID do seu projeto Google Cloud.\n\n'
+      +'(console.cloud.google.com \u2192 APIs e servi\u00E7os \u2192 Credenciais \u2192 Criar credencial OAuth 2.0 \u2192 Aplicativo da Web)\n\nClient ID:');
+    if(!clientId)return;
+    localStorage.setItem('goog_client_id',clientId.trim());
+  }
+  btn.textContent='\u231B Conectando...'; btn.disabled=true;
+  _carregarGIS(function(){
+    google.accounts.oauth2.initTokenClient({
+      client_id:localStorage.getItem('goog_client_id'),
+      scope:'https://www.googleapis.com/auth/drive.file',
+      callback:function(resp){
+        if(resp.error){alert('Erro ao autenticar com Google: '+resp.error);btn.textContent='Drive';btn.style.background='#1a73e8';btn.disabled=false;return;}
+        _driveToken=resp.access_token;
+        _executarBackupDrive(btn);
+      }
+    }).requestAccessToken();
+  });
+}
+
+function _carregarGIS(cb){
+  if(window.google&&window.google.accounts){cb();return;}
+  var s=document.createElement('script');
+  s.src='https://accounts.google.com/gsi/client';
+  s.onload=cb;
+  s.onerror=function(){alert('N\u00E3o foi poss\u00EDvel carregar o servi\u00E7o Google. Verifique a conex\u00E3o com a internet.');};
+  document.head.appendChild(s);
+}
+
+function _executarBackupDrive(btn){
+  var promFrete=(typeof carregarFrete==='function')?carregarFrete():Promise.resolve();
+  var promColetas=(typeof carregarColetas==='function')?carregarColetas():Promise.resolve();
+  Promise.all([promFrete,promColetas]).then(function(){
+    try{
+      var payload=JSON.stringify(_buildBackupPayload(),null,2);
+      btn.textContent='\u231B Enviando...';
+      fetch("https://www.googleapis.com/drive/v3/files?q=name%3D'backup_pagamentos_atual.json'+and+trashed%3Dfalse&fields=files(id)",
+        {headers:{Authorization:'Bearer '+_driveToken}})
+      .then(function(r){return r.json();})
+      .then(function(lista){
+        var atualId=lista.files&&lista.files[0]?lista.files[0].id:null;
+        var p=Promise.resolve();
+        if(atualId){
+          p=fetch("https://www.googleapis.com/drive/v3/files?q=name%3D'backup_pagamentos_anterior.json'+and+trashed%3Dfalse&fields=files(id)",
+            {headers:{Authorization:'Bearer '+_driveToken}})
+          .then(function(r){return r.json();})
+          .then(function(ant){
+            var antId=ant.files&&ant.files[0]?ant.files[0].id:null;
+            if(antId)return fetch('https://www.googleapis.com/drive/v3/files/'+antId,{method:'DELETE',headers:{Authorization:'Bearer '+_driveToken}});
+          })
+          .then(function(){
+            return fetch('https://www.googleapis.com/drive/v3/files/'+atualId,
+              {method:'PATCH',headers:{Authorization:'Bearer '+_driveToken,'Content-Type':'application/json'},
+               body:JSON.stringify({name:'backup_pagamentos_anterior.json'})});
+          });
+        }
+        return p.then(function(){
+          var boundary='bk'+Date.now();
+          var meta=JSON.stringify({name:'backup_pagamentos_atual.json',mimeType:'application/json'});
+          var body='--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+meta
+                  +'\r\n--'+boundary+'\r\nContent-Type: application/json\r\n\r\n'+payload
+                  +'\r\n--'+boundary+'--';
+          return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+            {method:'POST',headers:{Authorization:'Bearer '+_driveToken,'Content-Type':'multipart/related; boundary='+boundary},body:body});
+        });
+      })
+      .then(function(r){return r.json();})
+      .then(function(){
+        btn.textContent='\u2713 Drive salvo!'; btn.style.background='#16a34a';
+        setTimeout(function(){btn.textContent='Drive';btn.style.background='#1a73e8';btn.disabled=false;},3000);
+      })
+      .catch(function(e){alert('Erro no backup Drive: '+e.message);btn.textContent='Drive';btn.style.background='#1a73e8';btn.disabled=false;});
+    }catch(e){alert('Erro: '+e.message);btn.textContent='Drive';btn.disabled=false;}
   });
 }
 
