@@ -2707,14 +2707,17 @@ function renderDashboard(){
   // próximo vencimento
   var proxDocs=data.filter(function(r){return r.stKey==='open'&&r.venc;}).sort(function(a,b){return a.venc<b.venc?-1:1;});
   var proxNext=proxDocs[0];
-  var proxLbl=proxNext?(fD(proxNext.venc)+' · '+fR(proxNext.val)):'Nenhum';
+  // soma todos os docs com o mesmo vencimento mais próximo
+  var proxValTotal=proxNext?proxDocs.filter(function(r){return r.venc===proxNext.venc;}).reduce(function(a,r){return a+r.val;},0):0;
+  var proxN=proxNext?proxDocs.filter(function(r){return r.venc===proxNext.venc;}).length:0;
+  var proxLbl=proxNext?(fD(proxNext.venc)+' · '+proxN+' doc(s)'):'Nenhum';
 
   // ── KPIs linha 1 ──
   document.getElementById('dash-kpis').innerHTML=
     dkpi('','Total emitido',fR(tval),data.length+' documentos')+
     dkpi('ok','Total recebido',fR(pval),(tok+tlate)+' documentos')+
     dkpi('danger','Em atraso',fR(dueVal),tdue+' vencido(s)','irParaConsolidado([\'due\'])')+
-    dkpi('accent','Próx. vencimento',proxNext?fR(proxNext.val):'—',proxLbl,'irParaConsolidado([\'open\'])')+
+    dkpi('accent','Próx. vencimento',proxNext?fR(proxValTotal):'—',proxLbl,'irParaConsolidado([\'open\'])')+
     dkpi('late','Pago c/ atraso',tlate,'de '+(tok+tlate)+' pagos')+
     dkpi('','% Recebido',tval>0?Math.round(pval/tval*100)+'%':'0%','do volume total');
 
