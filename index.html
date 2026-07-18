@@ -398,6 +398,11 @@ body.modo-consulta .mtab{pointer-events:none}
 [data-theme="dark"] #tema-box > div:first-child{color:#a8a29e!important}
 [data-theme="dark"] #tema-btn-light,[data-theme="dark"] #tema-btn-dark,[data-theme="dark"] #tema-btn-system{background:#292524!important;border-color:#57534e!important;color:#fafaf9!important}
 [data-theme="dark"] #tema-btn-light[style*="background:#1c1917"],[data-theme="dark"] #tema-btn-dark[style*="background:#1c1917"],[data-theme="dark"] #tema-btn-system[style*="background:#1c1917"]{background:#fafaf9!important;color:#1c1917!important;border-color:#fafaf9!important}
+/* KPI card value colors — brighter variants for dark backgrounds */
+[data-theme="dark"] .ok .card-val{color:#4ade80!important}
+[data-theme="dark"] .late .card-val{color:#fbbf24!important}
+[data-theme="dark"] .danger .card-val{color:#f87171!important}
+[data-theme="dark"] .accent .card-val{color:#60a5fa!important}
 [data-theme="dark"] .oji-acc-hdr{background:#0c0a09!important}
 [data-theme="dark"] .oji-acc-bloco{border-color:#44403c!important}
 [data-theme="dark"] .oji-acc-hdr span:first-child > span:first-child{color:#fafaf9!important}
@@ -2843,17 +2848,26 @@ function renderDashboard(){
     {lbl:'A vencer',n:topen,val:aval,col:'#2563eb',bg:'#dbeafe'}
   ];
   var maxFunil=tval||1;
-  var funHTML='<div style="display:flex;flex-direction:column;gap:8px">';
+  var funHTML='<div style="display:flex;flex-direction:column;gap:2px">';
   funilEtapas.forEach(function(e){
     if(!e.n) return;
     var pct=Math.round(e.val/maxFunil*100);
-    var barW=Math.max(8,pct);
-    funHTML+='<div style="display:flex;align-items:center;gap:10px">'
-      +'<div style="min-width:110px;font-size:11px;font-weight:600;color:'+e.col+';text-align:right">'+e.lbl+'</div>'
-      +'<div style="flex:1;height:22px;background:#f5f5f4;border-radius:4px;overflow:hidden;position:relative">'
-      +'<div style="height:100%;width:'+barW+'%;background:'+e.bg+';border:1px solid '+e.col+';border-radius:4px;transition:width .5s ease"></div>'
-      +'<span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:600;color:'+e.col+'">'+e.n+' doc · '+fR(e.val)+' ('+pct+'%)</span>'
-      +'</div></div>';
+    var barW=Math.max(2,pct);
+    var fmtVal=fR(e.val).replace('R$','').trim();
+    var parts=fmtVal.split(',');
+    var intPart=parts[0]||'0';
+    var decPart=parts[1]||'00';
+    funHTML+='<div style="display:grid;grid-template-columns:124px 1fr auto 38px;align-items:center;column-gap:10px;padding:4px 0">'
+      +'<div style="font-size:12px;color:#a8a29e;text-align:right">'+e.lbl+'</div>'
+      +'<div style="background:#f5f5f4;border-radius:100px;height:7px;overflow:hidden">'
+        +'<div style="height:7px;width:'+barW+'%;background:'+e.col+';border-radius:100px;transition:width .5s ease"></div>'
+      +'</div>'
+      +'<div style="display:flex;align-items:baseline;gap:3px">'
+        +'<span style="font-size:11px;color:#a8a29e">R$</span>'
+        +'<span style="font-size:12px;font-weight:600;color:#1c1917;font-variant-numeric:tabular-nums;width:86px;display:inline-block;text-align:right">'+intPart+','+decPart+'</span>'
+      +'</div>'
+      +'<div style="font-size:11px;color:#a8a29e;text-align:right;font-variant-numeric:tabular-nums">'+pct+'%</div>'
+    +'</div>';
   });
   funHTML+='</div>';
   document.getElementById('chart-funil').innerHTML=funHTML;
