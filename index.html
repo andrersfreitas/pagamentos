@@ -1532,7 +1532,7 @@ function renderO(){
   renderOjiResumoDatas();
 }
 
-var _ojiAccOpen={};
+var _ojiAccOpen=null;
 function renderOjiResumoDatas(){
   var el=document.getElementById('oji-resumo-datas');
   if(!el) return;
@@ -1553,8 +1553,9 @@ function renderOjiResumoDatas(){
     meses[m].push(d);
   });
   var mesKeys=Object.keys(meses).sort().reverse();
-  // Abrir os 2 meses mais recentes por padr\u00e3o
-  if(Object.keys(_ojiAccOpen).length===0){
+  // Inicializar apenas na primeira vez (null = ainda n\u00e3o inicializado)
+  if(_ojiAccOpen===null){
+    _ojiAccOpen={};
     mesKeys.slice(0,2).forEach(function(m){ _ojiAccOpen[m]=true; });
   }
   var MESES_PT=['Janeiro','Fevereiro','Mar\u00e7o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -1582,7 +1583,7 @@ function renderOjiResumoDatas(){
         html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 16px 9px 28px;border-top:1px solid #f5f5f4" class="oji-acc-row">'
           +'<span style="font-size:13px;color:#78716c">'+fD(d)+'</span>'
           +'<div style="display:flex;align-items:center;gap:12px">'
-            +'<span style="font-size:13px;font-weight:600;color:#1c1917;font-variant-numeric:tabular-nums">'+fR(v.val)+'</span>'
+            +'<span style="font-size:13px;font-weight:600;color:#16a34a;font-variant-numeric:tabular-nums">'+fR(v.val)+'</span>'
             +'<span style="font-size:11px;color:#a8a29e">'+v.n+' doc(s)</span>'
           +'</div>'
         +'</div>';
