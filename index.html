@@ -3366,7 +3366,7 @@ function exportarExcel(){
         rn++;
       });
       var lr=rn-1;
-      c1.push([H('TOTAL'),S(''),S(''),S(''),S(''),N(st.tot,2),S(''),S('')]);
+      c1.push([H('TOTAL'),S(''),S(''),S(''),S(''),N(tval,2),S(''),S('')]);
       // CF: cores de status na coluna H
       var cf1='<conditionalFormatting sqref="H2:H'+lr+'">'
         +'<cfRule type="containsText" operator="containsText" text="Pago em dia" priority="4" dxfId="0"><formula>NOT(ISERROR(SEARCH(&quot;Pago em dia&quot;,H2)))</formula></cfRule>'
