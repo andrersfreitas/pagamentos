@@ -3517,9 +3517,23 @@ function carregarDados(){
         // Substituir CONS com dados do Supabase
         CONS.length = 0;
         cons_data.forEach(function(r){
-          var st = calcSt(r.pgto, r.venc);
+          var venc = r.venc;
+          // Corrige vencimentos calculados com o bug do dia 30 em meses curtos
+          // (ex: emissão 21-30/jan → venc deveria ser 28/fev, não 02/mar)
+          if(r.em && venc){
+            var ep=r.em.split('-').map(Number), ed=ep[2];
+            if(ed>20){
+              var nm=ep[1]<12?ep[1]+1:1, ny=ep[1]<12?ep[0]:ep[0]+1;
+              var ultimo=new Date(ny,nm,0).getDate();
+              if(ultimo<30){
+                var esperado=calcVenc(r.em);
+                if(esperado && venc!==esperado) venc=esperado;
+              }
+            }
+          }
+          var st = calcSt(r.pgto, venc);
           CONS.push({
-            id:r.id, doc:r.doc, tipo:r.tipo, em:r.em, venc:r.venc,
+            id:r.id, doc:r.doc, tipo:r.tipo, em:r.em, venc:venc,
             pgto:r.pgto, val:parseFloat(r.val), vei:r.vei||'',
             stKey:st.key, stLbl:st.lbl
           });
@@ -3584,7 +3598,10 @@ function restaurarDoLocalStorage(){
     if(!raw) return false;
     var payload = JSON.parse(raw);
     if(!payload||!payload.CONS||!payload.PAG_OJI||!payload.ts) return false;
-    CONS.length=0; payload.CONS.forEach(function(r){CONS.push(r);});
+    CONS.length=0; payload.CONS.forEach(function(r){
+      if(r.em&&r.venc){var ep=r.em.split('-').map(Number),ed=ep[2];if(ed>20){var nm=ep[1]<12?ep[1]+1:1,ny=ep[1]<12?ep[0]:ep[0]+1;var ult=new Date(ny,nm,0).getDate();if(ult<30){var esp=calcVenc(r.em);if(esp&&r.venc!==esp)r.venc=esp;}}}
+      CONS.push(r);
+    });
     PAG_OJI.length=0; payload.PAG_OJI.forEach(function(r){PAG_OJI.push(r);});
     if(payload.VEICS){VEICS.length=0;payload.VEICS.forEach(function(v){VEICS.push(v);});}
     if(payload.MC){MC.length=0;payload.MC.forEach(function(m){MC.push(m);});}
