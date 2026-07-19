@@ -260,10 +260,22 @@ body.modo-consulta .mtab{pointer-events:none}
   .pdf-opts{flex-direction:column;gap:12px}
   .dr{flex-direction:column;gap:6px}
 
-  /* Dashboard mobile */
-  #page-dashboard > div[style*="grid-template-columns:2fr"]{
+  /* Dashboard mobile — empilha todas as grids de 2 colunas */
+  #page-dashboard > div[style*="grid-template-columns:2fr"],
+  #page-dashboard > div[style*="grid-template-columns:1fr 1fr"]{
     grid-template-columns:1fr!important
   }
+
+  /* OJI accordion — scroll horizontal no mobile */
+  #oji-resumo-datas{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #oji-resumo-datas > div{min-width:620px}
+
+  /* Consolidado mobile — esconder Pagamento para caber Valor */
+  #page-consolidado thead th:nth-child(5),
+  #page-consolidado tbody td:nth-child(5){display:none}
+
+  /* OJI cards mobile — 2 colunas */
+  #cards-oji{grid-template-columns:1fr 1fr!important}
 
   /* Import mobile */
   .imp-btns{flex-direction:column;gap:10px}
