@@ -224,8 +224,9 @@ body.modo-consulta .mtab{pointer-events:none}
   .panel{width:100%!important;max-width:100%!important}
   svg{max-width:100%}
   /* Tabelas internas com scroll próprio */
-  #dash-tipo-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%}
-  #dash-tipo-wrap table{font-size:11px}
+  #panel-tipo-table{max-width:100%;overflow:hidden}
+  #dash-tipo-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;max-width:100%}
+  #dash-tipo-wrap table{font-size:11px;min-width:380px}
   #dash-tipo-wrap td,#dash-tipo-wrap th{padding:7px 8px!important}
   .topbar{padding:0 12px;gap:8px;height:52px}
   .topbar-title{font-size:13px}
@@ -672,7 +673,7 @@ body.modo-consulta .mtab{pointer-events:none}
 
 
   <!-- Linha 6: Tabela por tipo de veículo -->
-  <div class="panel" style="padding:20px;margin-bottom:16px" id="panel-tipo-table">
+  <div class="panel" style="padding:20px;margin-bottom:16px;overflow:hidden" id="panel-tipo-table">
     <div style="font-size:13px;font-weight:600;color:#1c1917;margin-bottom:4px">Faturamento por tipo de ve&#xED;culo</div>
     <div style="font-size:11px;color:#a8a29e;margin-bottom:16px">Clique em uma linha para filtrar no Consolidado</div>
     <div id="dash-tipo-wrap"></div>
