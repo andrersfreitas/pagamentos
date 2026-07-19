@@ -1523,26 +1523,49 @@ function renderO(){
   document.getElementById('oji-tot').textContent=(total<0?'- ':'')+fR(total);
   document.getElementById('oji-tot').style.color=total<0?'#dc2626':'#16a34a';
   updPag('oji',oS);
-  // Cards Oji (refletem os filtros aplicados na aba)
-  var pg2=oS.fil.filter(function(r){return r.valor<0;});
-  var tP=pg2.reduce(function(a,r){return a+Math.abs(r.valor);},0);
-  // Calcular previsto, em atraso e a vencer direto do CONS
+  // Cards OJI: Faturado / Pago / Saldo / Pendente
   var hoje=new Date(); hoje.setHours(0,0,0,0);
-  var totPrevKpi=0,totAtrasadoKpi=0,totAVencerKpi=0;
+  var _kFat={},_kPago={};
   CONS.forEach(function(r){
-    totPrevKpi+=r.val;
-    if(!r.pgto){
-      var vd=new Date(r.venc+'T00:00:00');
-      if(vd<hoje) totAtrasadoKpi+=r.val; else totAVencerKpi+=r.val;
-    }
+    var d=normVenc(r.venc||''); if(!d) return;
+    _kFat[d]=(_kFat[d]||0)+r.val;
   });
+  PAG_OJI.forEach(function(r){
+    if(r.valor>=0) return;
+    var d=normVenc(r.data||''); if(!d) return;
+    _kPago[d]=(_kPago[d]||0)+Math.abs(r.valor);
+  });
+  var kFat=Object.values(_kFat).reduce(function(a,v){return a+v;},0);
+  var kPago=Object.values(_kPago).reduce(function(a,v){return a+v;},0);
+  var kSaldo=kFat-kPago;
+  var _kAccum=0;
+  Object.keys(_kFat).sort().forEach(function(d){
+    var vd=new Date(d+'T00:00:00');
+    if(vd<hoje) _kAccum=Math.max(0,_kAccum+((_kFat[d]||0)-(_kPago[d]||0)));
+  });
+  var kPend=_kAccum;
   document.getElementById('cards-oji').innerHTML=
-    mkC('','Lan\u00e7amentos',oS.fil.length,'no filtro atual')+
-    mkC('','Previsto',fR(totPrevKpi),'soma dos vencimentos')+
-    mkC('danger','Realizado',fR(tP),pg2.length+' pagamento(s)')+
-    mkC('late','Em atraso',fR(totAtrasadoKpi),'vencido e n\u00e3o pago')+
-    mkC('accent','A vencer',fR(totAVencerKpi),'ainda n\u00e3o venceu');
+    mkC('accent','Faturado',fR(kFat),CONS.length+' documentos')+
+    mkC('','Pago',fR(kPago),'pagamentos OJI')+
+    mkC('late','Saldo',fR(kSaldo),'faturado \u2212 pago')+
+    mkC('danger','Pendente',fR(kPend),'saldo vencido acumulado');
   renderOjiResumoDatas();
+}
+
+// Normaliza uma data YYYY-MM-DD para a data can\u00f4nica mais pr\u00f3xima (10, 20 ou \u00faltimo dia do m\u00eas \u226430)
+// Faixas: dia 1-4 \u2192 30 do m\u00eas anterior; dia 6-14 \u2192 10; dia 15-24 \u2192 20; dia \u226525 \u2192 30 (ou \u00faltimo dia)
+function normVenc(d){
+  if(!d) return d;
+  var p=d.split('-'),y=parseInt(p[0]),mo=parseInt(p[1]),dy=parseInt(p[2]);
+  var pad=function(n){return n<10?'0'+n:''+n;};
+  var lastDay=function(yy,mm){return new Date(yy,mm,0).getDate();};
+  if(dy>=6&&dy<=14) return y+'-'+pad(mo)+'-10';
+  if(dy>=15&&dy<=24) return y+'-'+pad(mo)+'-20';
+  if(dy>=25){ var c=Math.min(30,lastDay(y,mo)); return y+'-'+pad(mo)+'-'+pad(c); }
+  // dia 1-4: m\u00eas anterior
+  var pm=mo-1,py=y; if(pm===0){pm=12;py--;}
+  var c2=Math.min(30,lastDay(py,pm));
+  return py+'-'+pad(pm)+'-'+pad(c2);
 }
 
 var _ojiAccOpen=null;
@@ -1550,104 +1573,123 @@ function renderOjiResumoDatas(){
   var el=document.getElementById('oji-resumo-datas');
   if(!el) return;
   var hoje=new Date(); hoje.setHours(0,0,0,0);
-  // Realizado por data de pagamento OJI
-  var realData={};
+  // Faturado por data can\u00f4nica de vencimento
+  var fatData={},nDocsData={};
+  CONS.forEach(function(r){
+    var d=normVenc(r.venc||''); if(!d) return;
+    fatData[d]=(fatData[d]||0)+r.val;
+    nDocsData[d]=(nDocsData[d]||0)+1;
+  });
+  // Pago por data can\u00f4nica do pagamento OJI
+  var pagoData={};
   PAG_OJI.forEach(function(r){
     if(r.valor>=0) return;
-    var d=r.data||''; if(!d) return;
-    if(!realData[d]) realData[d]={val:0,n:0};
-    realData[d].val+=Math.abs(r.valor); realData[d].n++;
+    var d=normVenc(r.data||''); if(!d) return;
+    pagoData[d]=(pagoData[d]||0)+Math.abs(r.valor);
   });
-  // Previsto, em atraso e a vencer por data de vencimento do CONS
-  var prevData={},atrasData={},avencData={};
-  CONS.forEach(function(r){
-    var d=r.venc||''; if(!d) return;
-    if(!prevData[d]) prevData[d]=0;
-    prevData[d]+=r.val;
-    if(!r.pgto){
-      var vd=new Date(d+'T00:00:00');
-      if(vd<hoje){ if(!atrasData[d]) atrasData[d]=0; atrasData[d]+=r.val; }
-      else { if(!avencData[d]) avencData[d]=0; avencData[d]+=r.val; }
-    }
-  });
-  // Uni\u00e3o de datas
+  // Uni\u00e3o de datas can\u00f4nicas
   var todasDatas={};
-  Object.keys(realData).forEach(function(d){ todasDatas[d]=true; });
-  Object.keys(prevData).forEach(function(d){ todasDatas[d]=true; });
+  Object.keys(fatData).forEach(function(d){todasDatas[d]=true;});
+  Object.keys(pagoData).forEach(function(d){todasDatas[d]=true;});
   var datas=Object.keys(todasDatas).sort();
-  if(!datas.length){el.innerHTML='<p style="font-size:13px;color:#a8a29e;padding:4px 0">Nenhum pagamento registrado.</p>';return;}
+  if(!datas.length){el.innerHTML='<p style="font-size:13px;color:#a8a29e;padding:4px 0">Nenhum dado registrado.</p>';return;}
+  // Pendente acumulado (ordem cronol\u00f3gica, s\u00f3 datas vencidas)
+  var pendData={},accum=0;
+  datas.forEach(function(d){
+    var vd=new Date(d+'T00:00:00');
+    if(vd<hoje){ accum=Math.max(0,accum+((fatData[d]||0)-(pagoData[d]||0))); pendData[d]=accum; }
+  });
   // Agrupar por m\u00eas
   var meses={};
-  datas.forEach(function(d){ var m=d.slice(0,7); if(!meses[m]) meses[m]=[]; meses[m].push(d); });
+  datas.forEach(function(d){var m=d.slice(0,7);if(!meses[m])meses[m]=[];meses[m].push(d);});
   var mesKeys=Object.keys(meses).sort().reverse();
-  if(_ojiAccOpen===null){ _ojiAccOpen={}; }
-  // Grid CSS fixo para alinhamento de colunas
+  if(_ojiAccOpen===null){_ojiAccOpen={};}
   var G='display:grid;grid-template-columns:160px 1fr 1fr 1fr 1fr 20px;align-items:center;';
-  var TH='font-size:10px;font-weight:600;color:#a8a29e;text-transform:uppercase;letter-spacing:.06em;text-align:right;padding:6px 14px 6px 0;';
-  var TD='font-size:13px;font-variant-numeric:tabular-nums;text-align:right;padding:9px 14px 9px 0;';
+  var TH='font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;text-align:right;padding:6px 14px 6px 0;';
+  var TD='font-size:13px;font-variant-numeric:tabular-nums;text-align:right;padding:10px 14px 10px 0;';
   var MESES_PT=['Janeiro','Fevereiro','Mar\u00e7o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  function mesLbl(m){ var p=m.split('-'); return MESES_PT[parseInt(p[1],10)-1]+' '+p[0]; }
+  function mesLbl(m){var p=m.split('-');return MESES_PT[parseInt(p[1],10)-1]+' '+p[0];}
+  function saldoCor(s){return s<0?'#16a34a':s===0?'#a8a29e':'#d97706';}
+  function saldoFmt(s){return (s<0?'\u2212':'')+fR(Math.abs(s));}
   var html='';
+  // Cabe\u00e7alho fixo de colunas
+  html+='<div style="'+G+'padding:7px 16px;background:#f5f5f4;border:1px solid #e7e5e4;border-radius:8px 8px 0 0;margin-bottom:-1px">'
+    +'<span style="'+TH+'color:#a8a29e;text-align:left;padding-left:0;padding-right:0">M\u00eas / Data</span>'
+    +'<span style="'+TH+'color:#2563eb">Faturado</span>'
+    +'<span style="'+TH+'color:#16a34a">Pago</span>'
+    +'<span style="'+TH+'color:#d97706">Saldo \u24d8</span>'
+    +'<span style="'+TH+'color:#dc2626">Pendente \u24d8</span>'
+    +'<span></span>'
+  +'</div>';
   mesKeys.forEach(function(m){
     var open=!!_ojiAccOpen[m];
-    var mPrev=meses[m].reduce(function(a,d){return a+(prevData[d]||0);},0);
-    var mReal=meses[m].reduce(function(a,d){return a+(realData[d]?realData[d].val:0);},0);
-    var mAtr=meses[m].reduce(function(a,d){return a+(atrasData[d]||0);},0);
-    var mAvc=meses[m].reduce(function(a,d){return a+(avencData[d]||0);},0);
-    var nMes=meses[m].reduce(function(a,d){return a+(realData[d]?realData[d].n:0);},0);
-    html+='<div style="border:1px solid #e7e5e4;border-radius:10px;overflow:hidden;margin-bottom:8px" class="oji-acc-bloco">';
-    // Cabe\u00e7alho do m\u00eas
+    var mFat=meses[m].reduce(function(a,d){return a+(fatData[d]||0);},0);
+    var mPago=meses[m].reduce(function(a,d){return a+(pagoData[d]||0);},0);
+    var mSaldo=mFat-mPago;
+    var mPend=0;
+    meses[m].forEach(function(d){if(pendData[d]!==undefined)mPend=pendData[d];});
+    var nDocs=meses[m].reduce(function(a,d){return a+(nDocsData[d]||0);},0);
+    html+='<div style="border:1px solid #e7e5e4;border-radius:8px;overflow:hidden;margin-bottom:6px" class="oji-acc-bloco">';
     html+='<div onclick="toggleOjiAcc(\''+m+'\')" style="'+G+'padding:11px 16px;cursor:pointer;background:#fafaf9" class="oji-acc-hdr">'
       +'<div style="display:flex;align-items:center;gap:8px">'
         +'<span style="font-size:13px;font-weight:600;color:#1c1917">'+mesLbl(m)+'</span>'
-        +'<span style="font-size:11px;color:#a8a29e">'+nMes+' doc(s)</span>'
+        +'<span style="font-size:11px;color:#a8a29e">'+nDocs+' doc(s)</span>'
       +'</div>'
-      +'<span style="'+TD+'color:#78716c;font-weight:500">'+fR(mPrev)+'</span>'
-      +'<span style="'+TD+'color:#16a34a;font-weight:600">'+fR(mReal)+'</span>'
-      +'<span style="'+TD+'color:#dc2626;font-weight:600">'+(mAtr>0?fR(mAtr):'\u2014')+'</span>'
-      +'<span style="'+TD+'color:#2563eb;font-weight:600">'+(mAvc>0?fR(mAvc):'\u2014')+'</span>'
+      +'<span style="'+TD+'color:#2563eb;font-weight:600">'+fR(mFat)+'</span>'
+      +'<span style="'+TD+'color:#16a34a;font-weight:600">'+fR(mPago)+'</span>'
+      +'<span style="'+TD+'font-weight:600;color:'+saldoCor(mSaldo)+'">'+saldoFmt(mSaldo)+'</span>'
+      +'<span style="'+TD+'font-weight:600;color:#dc2626">'+(mPend>0?fR(mPend):'\u2014')+'</span>'
       +'<span style="font-size:10px;color:#a8a29e;text-align:right;transition:transform .15s;display:inline-block;transform:'+(open?'rotate(180deg)':'rotate(0deg)')+'">\u25bc</span>'
     +'</div>';
     if(open){
-      // Cabe\u00e7alho das colunas
-      html+='<div style="'+G+'padding:5px 16px;background:#f5f5f4;border-top:1px solid #f5f5f4" class="oji-acc-thead">'
-        +'<span style="'+TH+'text-align:left;padding-left:18px;padding-right:0">Data</span>'
-        +'<span style="'+TH+'">Previsto</span>'
-        +'<span style="'+TH+'">Realizado</span>'
-        +'<span style="'+TH+'color:#dc2626">Em atraso</span>'
-        +'<span style="'+TH+'color:#2563eb">A vencer</span>'
+      html+='<div style="'+G+'padding:5px 16px;background:#f5f5f4;border-top:1px solid #e7e5e4">'
+        +'<span style="'+TH+'color:#a8a29e;text-align:left;padding-left:18px;padding-right:0">Data</span>'
+        +'<span style="'+TH+'color:#2563eb">Faturado</span>'
+        +'<span style="'+TH+'color:#16a34a">Pago</span>'
+        +'<span style="'+TH+'color:#d97706">Saldo</span>'
+        +'<span style="'+TH+'color:#dc2626">Pendente acum.</span>'
         +'<span></span>'
       +'</div>';
-      // Linhas de data
       meses[m].forEach(function(d){
-        var rv=realData[d]||{val:0,n:0};
-        var pv=prevData[d]||0;
-        var at=atrasData[d]||0;
-        var av=avencData[d]||0;
-        html+='<div style="'+G+'padding:9px 16px;border-top:1px solid #f5f5f4" class="oji-acc-row">'
+        var fat=fatData[d]||0,pago=pagoData[d]||0,saldo=fat-pago;
+        var pend=pendData[d];
+        var nd=nDocsData[d]||0;
+        html+='<div style="'+G+'padding:9px 16px;border-top:1px solid #f0efee" class="oji-acc-row">'
           +'<div style="padding-left:18px">'
             +'<span style="font-size:13px;color:#78716c">'+fD(d)+'</span>'
-            +(rv.n?'<span style="font-size:11px;color:#a8a29e;margin-left:6px">'+rv.n+' doc(s)</span>':'')
+            +(nd?'<span style="font-size:11px;color:#a8a29e;margin-left:6px">'+nd+' doc(s)</span>':'')
           +'</div>'
-          +'<span style="'+TD+'color:#78716c">'+fR(pv)+'</span>'
-          +'<span style="'+TD+'color:#16a34a;font-weight:600">'+fR(rv.val)+'</span>'
-          +'<span style="'+TD+'color:#dc2626;font-weight:600">'+(at>0?fR(at):'\u2014')+'</span>'
-          +'<span style="'+TD+'color:#2563eb;font-weight:600">'+(av>0?fR(av):'\u2014')+'</span>'
+          +'<span style="'+TD+'color:#2563eb">'+fR(fat)+'</span>'
+          +'<span style="'+TD+'color:#16a34a">'+fR(pago)+'</span>'
+          +'<span style="'+TD+'color:'+saldoCor(saldo)+'">'+saldoFmt(saldo)+'</span>'
+          +'<span style="'+TD+'color:#dc2626">'+(pend!==undefined?fR(pend):'\u2014')+'</span>'
           +'<span></span>'
         +'</div>';
       });
-      // Rodap\u00e9 do m\u00eas
-      html+='<div style="'+G+'padding:9px 16px;border-top:1px solid #e7e5e4;background:#fafaf9" class="oji-acc-foot">'
-        +'<span style="font-size:11px;font-weight:600;color:#a8a29e;padding-left:18px">Total do m\u00eas</span>'
-        +'<span style="'+TD+'font-size:12px;font-weight:600;color:#78716c">'+fR(mPrev)+'</span>'
-        +'<span style="'+TD+'font-size:12px;font-weight:600;color:#16a34a">'+fR(mReal)+'</span>'
-        +'<span style="'+TD+'font-size:12px;font-weight:600;color:#dc2626">'+(mAtr>0?fR(mAtr):'\u2014')+'</span>'
-        +'<span style="'+TD+'font-size:12px;font-weight:600;color:#2563eb">'+(mAvc>0?fR(mAvc):'\u2014')+'</span>'
+      html+='<div style="'+G+'padding:9px 16px;border-top:1px solid #e7e5e4;background:#fafaf9">'
+        +'<span style="font-size:11px;font-weight:700;color:#a8a29e;text-transform:uppercase;letter-spacing:.05em;padding-left:18px">Total do m\u00eas</span>'
+        +'<span style="'+TD+'font-weight:700;color:#2563eb">'+fR(mFat)+'</span>'
+        +'<span style="'+TD+'font-weight:700;color:#16a34a">'+fR(mPago)+'</span>'
+        +'<span style="'+TD+'font-weight:700;color:'+saldoCor(mSaldo)+'">'+saldoFmt(mSaldo)+'</span>'
+        +'<span style="'+TD+'font-weight:700;color:#dc2626">'+(mPend>0?fR(mPend):'\u2014')+'</span>'
         +'<span></span>'
       +'</div>';
     }
     html+='</div>';
   });
+  // Legenda
+  function legItem(cor,icon,lbl,desc){
+    return '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:#fafaf9;border:1px solid #e7e5e4;border-radius:8px">'
+      +'<div style="width:26px;height:26px;border-radius:6px;background:#f0efee;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px">'+icon+'</div>'
+      +'<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:'+cor+';margin-bottom:2px">'+lbl+'</div>'
+      +'<div style="font-size:11px;color:#6b7280;line-height:1.4">'+desc+'</div></div></div>';
+  }
+  html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px">'
+    +legItem('#2563eb','\ud83d\udcc4','Faturado','Total faturado por data can\u00f4nica de vencimento (10, 20 ou \u00faltimo dia do m\u00eas \u226430).')
+    +legItem('#16a34a','\u2713','Pago','Total pago via OJI, normalizado para a mesma data can\u00f4nica.')
+    +legItem('#d97706','\u23f1','Saldo','Faturado \u2212 Pago. Verde = pagou mais que o faturado.')
+    +legItem('#dc2626','\u26a0','Pendente','Saldo de vencimentos passados acumulado e rolante.')
+  +'</div>';
   el.innerHTML=html;
 }
 function toggleOjiAcc(m){
