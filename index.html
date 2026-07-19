@@ -3006,17 +3006,19 @@ function renderDashboard(){
     var parts=fmtVal.split(',');
     var intPart=parts[0]||'0';
     var decPart=parts[1]||'00';
-    funHTML+='<div style="display:grid;grid-template-columns:124px 1fr auto 44px 38px;align-items:center;column-gap:10px;padding:4px 0">'
-      +'<div style="font-size:12px;color:#a8a29e;text-align:right">'+e.lbl+'</div>'
+    funHTML+='<div class="funil-row" style="padding:4px 0">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+        +'<div style="font-size:12px;color:#a8a29e">'+e.lbl+'</div>'
+        +'<div style="display:flex;align-items:baseline;gap:6px">'
+          +'<span style="font-size:11px;color:#a8a29e">R$</span>'
+          +'<span style="font-size:12px;font-weight:600;color:#1c1917;font-variant-numeric:tabular-nums">'+intPart+','+decPart+'</span>'
+          +'<span style="font-size:11px;color:#a8a29e;font-variant-numeric:tabular-nums">'+e.n+' doc</span>'
+          +'<span style="font-size:11px;color:#a8a29e;font-variant-numeric:tabular-nums;min-width:28px;text-align:right">'+pct+'%</span>'
+        +'</div>'
+      +'</div>'
       +'<div style="background:#f5f5f4;border-radius:100px;height:7px;overflow:hidden">'
         +'<div style="height:7px;width:'+barW+'%;background:'+e.col+';border-radius:100px;transition:width .5s ease"></div>'
       +'</div>'
-      +'<div style="display:flex;align-items:baseline;gap:3px">'
-        +'<span style="font-size:11px;color:#a8a29e">R$</span>'
-        +'<span style="font-size:12px;font-weight:600;color:#1c1917;font-variant-numeric:tabular-nums;width:86px;display:inline-block;text-align:right">'+intPart+','+decPart+'</span>'
-      +'</div>'
-      +'<div style="font-size:11px;color:#a8a29e;text-align:right;font-variant-numeric:tabular-nums">'+e.n+' doc</div>'
-      +'<div style="font-size:11px;color:#a8a29e;text-align:right;font-variant-numeric:tabular-nums">'+pct+'%</div>'
     +'</div>';
   });
   funHTML+='</div>';
