@@ -404,6 +404,34 @@ body.modo-consulta .mtab{pointer-events:none}
 [data-theme="dark"] .danger .card-val{color:#f87171!important}
 [data-theme="dark"] .accent .card-val{color:#60a5fa!important}
 [data-theme="dark"] .oji-acc-hdr{background:#0c0a09!important}
+.oji-kpi{border-radius:12px;padding:16px 18px;position:relative;overflow:hidden}
+.oji-kpi-fat{border-left:4px solid #3b82f6}
+.oji-kpi-pago{border-left:4px solid #22c55e}
+.oji-kpi-saldo{border-left:4px solid #f59e0b}
+.oji-kpi-pend{border-left:4px solid #ef4444}
+.oji-kpi-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.oji-kpi-fat .oji-kpi-icon{background:rgba(59,130,246,.15)}
+.oji-kpi-pago .oji-kpi-icon{background:rgba(34,197,94,.15)}
+.oji-kpi-saldo .oji-kpi-icon{background:rgba(245,158,11,.15)}
+.oji-kpi-pend .oji-kpi-icon{background:rgba(239,68,68,.15)}
+.oji-kpi-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.oji-kpi-fat .oji-kpi-lbl{color:#2563eb}
+.oji-kpi-pago .oji-kpi-lbl{color:#16a34a}
+.oji-kpi-saldo .oji-kpi-lbl{color:#d97706}
+.oji-kpi-pend .oji-kpi-lbl{color:#dc2626}
+[data-theme="dark"] .oji-kpi-fat .oji-kpi-lbl{color:#60a5fa}
+[data-theme="dark"] .oji-kpi-pago .oji-kpi-lbl{color:#4ade80}
+[data-theme="dark"] .oji-kpi-saldo .oji-kpi-lbl{color:#fbbf24}
+[data-theme="dark"] .oji-kpi-pend .oji-kpi-lbl{color:#f87171}
+.oji-kpi-divider{height:1px;background:#e7e5e4;margin:10px 0}
+[data-theme="dark"] .oji-kpi-divider{background:#292524}
+.oji-kpi-desc{font-size:11px;color:#6b7280;line-height:1.5}
+[data-theme="dark"] .oji-kpi-desc{color:#78716c}
+.oji-leg-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;background:#f0efee}
+[data-theme="dark"] .oji-leg-icon{background:#292524}
+.oji-leg-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px}
+.oji-leg-desc{font-size:11px;color:#6b7280;line-height:1.4}
+[data-theme="dark"] .oji-leg-desc{color:#78716c}
 [data-theme="dark"] .oji-acc-bloco{border-color:#44403c!important}
 [data-theme="dark"] .oji-acc-hdr span:first-child > span:first-child{color:#fafaf9!important}
 [data-theme="dark"] .oji-acc-row{border-top-color:#292524!important}
@@ -1547,24 +1575,25 @@ function renderO(){
     if(vd<hoje) _kAccum=Math.max(0,_kAccum+((_kFat[d]||0)-(_kPago[d]||0)));
   });
   var kPend=_kAccum;
-  function ojiCard(bordaCor,iconBg,iconHtml,labelCor,label,val,valCor,sub,desc){
-    return '<div style="background:#1c1917;border:1px solid #44403c;border-left:4px solid '+bordaCor+';border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:0">'
+  function ojiCard(cls,icon,label,val,valCls,sub,desc){
+    return '<div class="card oji-kpi '+cls+'">'
       +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
-        +'<div style="width:30px;height:30px;border-radius:8px;background:'+iconBg+';display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">'+iconHtml+'</div>'
-        +'<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:'+labelCor+'">'+label+'</span>'
+        +'<div class="oji-kpi-icon">'+icon+'</div>'
+        +'<span class="oji-kpi-lbl">'+label+'</span>'
       +'</div>'
-      +'<div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;color:'+valCor+';line-height:1.2;margin-bottom:3px">'+val+'</div>'
-      +'<div style="font-size:11px;color:#78716c;margin-bottom:10px">'+sub+'</div>'
-      +'<div style="height:1px;background:#292524;margin-bottom:10px"></div>'
-      +'<div style="font-size:11px;color:#6b7280;line-height:1.5">'+desc+'</div>'
+      +'<div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;margin-bottom:3px" class="card-val '+valCls+'">'+val+'</div>'
+      +'<div class="card-sub" style="margin-bottom:10px">'+sub+'</div>'
+      +'<div class="oji-kpi-divider"></div>'
+      +'<div class="oji-kpi-desc">'+desc+'</div>'
     +'</div>';
   }
-  var saldoValCor=kSaldo>0?'#d97706':kSaldo<0?'#4ade80':'#a8a29e';
+  var kSaldoAbs=fR(Math.abs(kSaldo));
+  var saldoSub=kSaldo<0?'pagou mais que o faturado':'a receber no total';
   document.getElementById('cards-oji').innerHTML=
-    ojiCard('#3b82f6','rgba(59,130,246,.18)','\ud83d\udcc4','#60a5fa','Faturado',fR(kFat),'#f5f5f4',CONS.length+' documentos','Valor total faturado por data can\u00f4nica de vencimento, independente da data de pagamento.')+
-    ojiCard('#22c55e','rgba(34,197,94,.18)','\u2713','#4ade80','Pago',fR(kPago),'#4ade80',PAG_OJI.filter(function(r){return r.valor<0;}).length+' pagamentos','Valor total efetivamente recebido no per\u00edodo, normalizado para a data can\u00f4nica correspondente.')+
-    ojiCard('#f59e0b','rgba(245,158,11,.18)','\u23f1','#fbbf24','Saldo',fR(Math.abs(kSaldo)),saldoValCor,(kSaldo<0?'pagou mais que o faturado':'a receber no total'),'<span style="font-size:10px;font-weight:600;color:#a8a29e">SALDO = FATURADO \u2013 PAGO</span><br><span style="color:#78716c">'+fR(kFat)+' \u2013 '+fR(kPago)+'</span>')+
-    ojiCard('#ef4444','rgba(239,68,68,.18)','\u26a0','#f87171','Pendente',fR(kPend),'#f87171','saldo acumulado vencido','Saldo n\u00e3o pago de cada vencimento passado, acumulado e rolante.');
+    ojiCard('oji-kpi-fat','\ud83d\udcc4','Faturado',fR(kFat),'accent',CONS.length+' documentos','Valor total faturado por data can\u00f4nica de vencimento, independente da data de pagamento.')+
+    ojiCard('oji-kpi-pago','\u2713','Pago',fR(kPago),'ok',PAG_OJI.filter(function(r){return r.valor<0;}).length+' pagamentos','Valor total efetivamente recebido no per\u00edodo, normalizado para a data can\u00f4nica correspondente.')+
+    ojiCard('oji-kpi-saldo','\u23f1','Saldo',kSaldoAbs,'late',saldoSub,'<span class="oji-kpi-lbl" style="display:inline">SALDO = FATURADO \u2013 PAGO</span><br>'+fR(kFat)+' \u2013 '+fR(kPago))+
+    ojiCard('oji-kpi-pend','\u26a0','Pendente',fR(kPend),'danger','saldo acumulado vencido','Saldo n\u00e3o pago de cada vencimento passado, acumulado e rolante.');
   renderOjiResumoDatas();
 }
 
@@ -1699,10 +1728,10 @@ function renderOjiResumoDatas(){
   });
   // Legenda
   function legItem(cor,icon,lbl,desc){
-    return '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:#fafaf9;border:1px solid #e7e5e4;border-radius:8px">'
-      +'<div style="width:26px;height:26px;border-radius:6px;background:#f0efee;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px">'+icon+'</div>'
-      +'<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:'+cor+';margin-bottom:2px">'+lbl+'</div>'
-      +'<div style="font-size:11px;color:#6b7280;line-height:1.4">'+desc+'</div></div></div>';
+    return '<div class="card" style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px">'
+      +'<div class="oji-leg-icon">'+icon+'</div>'
+      +'<div><div class="oji-leg-lbl" style="color:'+cor+'">'+lbl+'</div>'
+      +'<div class="oji-leg-desc">'+desc+'</div></div></div>';
   }
   html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px">'
     +legItem('#2563eb','\ud83d\udcc4','Faturado','Total faturado por data can\u00f4nica de vencimento (10, 20 ou \u00faltimo dia do m\u00eas \u226430).')
