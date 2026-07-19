@@ -405,10 +405,10 @@ body.modo-consulta .mtab{pointer-events:none}
 [data-theme="dark"] .accent .card-val{color:#60a5fa!important}
 [data-theme="dark"] .oji-acc-hdr{background:#0c0a09!important}
 .oji-kpi{border-radius:12px;padding:16px 18px;position:relative;overflow:hidden}
-.oji-kpi-fat{border-left:4px solid #3b82f6}
-.oji-kpi-pago{border-left:4px solid #22c55e}
-.oji-kpi-saldo{border-left:4px solid #f59e0b}
-.oji-kpi-pend{border-left:4px solid #ef4444}
+.oji-kpi-fat{border-left:4px solid #3b82f6!important}
+.oji-kpi-pago{border-left:4px solid #22c55e!important}
+.oji-kpi-saldo{border-left:4px solid #f59e0b!important}
+.oji-kpi-pend{border-left:4px solid #ef4444!important}
 .oji-kpi-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
 .oji-kpi-fat .oji-kpi-icon{background:rgba(59,130,246,.15)}
 .oji-kpi-pago .oji-kpi-icon{background:rgba(34,197,94,.15)}
@@ -1589,10 +1589,7 @@ function renderO(){
   }
   var kSaldoAbs=fR(Math.abs(kSaldo));
   var saldoSub=kSaldo<0?'pagou mais que o faturado':'a receber no total';
-  var nDocsPend=CONS.filter(function(r){
-    var d=normVenc(r.venc||''); if(!d) return false;
-    return new Date(d+'T00:00:00')<hoje;
-  }).length;
+  var nDocsPend=CONS.filter(function(r){ return r.stKey==='due'; }).length;
   document.getElementById('cards-oji').innerHTML=
     ojiCard('oji-kpi-fat','\ud83d\udcc4','Faturado',fR(kFat),'accent',CONS.length+' documentos','Valor total faturado por data can\u00f4nica de vencimento, independente da data de pagamento.')+
     ojiCard('oji-kpi-pago','\u2713','Pago',fR(kPago),'ok',PAG_OJI.filter(function(r){return r.valor<0;}).length+' pagamentos','Valor total efetivamente recebido no per\u00edodo, normalizado para a data can\u00f4nica correspondente.')+
