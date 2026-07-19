@@ -1590,10 +1590,11 @@ function renderO(){
   var kSaldoAbs=fR(Math.abs(kSaldo));
   var saldoSub=kSaldo<0?'pagou mais que o faturado':'a receber no total';
   var nDocsPend=CONS.filter(function(r){ return r.stKey==='due'; }).length;
+  var nDocsSaldo=CONS.filter(function(r){ return r.stKey==='due'||r.stKey==='open'; }).length;
   document.getElementById('cards-oji').innerHTML=
     ojiCard('oji-kpi-fat','\ud83d\udcc4','Faturado',fR(kFat),'accent',CONS.length+' documentos','Valor total faturado por data can\u00f4nica de vencimento, independente da data de pagamento.')+
     ojiCard('oji-kpi-pago','\u2713','Pago',fR(kPago),'ok',PAG_OJI.filter(function(r){return r.valor<0;}).length+' pagamentos','Valor total efetivamente recebido no per\u00edodo, normalizado para a data can\u00f4nica correspondente.')+
-    ojiCard('oji-kpi-saldo','\u23f1','Saldo',kSaldoAbs,'late',saldoSub,'<span class="oji-kpi-lbl" style="display:inline">SALDO = FATURADO \u2013 PAGO</span><br>'+fR(kFat)+' \u2013 '+fR(kPago))+
+    ojiCard('oji-kpi-saldo','\u23f1','Saldo',kSaldoAbs,'late',nDocsSaldo+' doc(s) em aberto','<span class="oji-kpi-lbl" style="display:inline">SALDO = FATURADO \u2013 PAGO</span><br>'+fR(kFat)+' \u2013 '+fR(kPago))+
     ojiCard('oji-kpi-pend','\u26a0','Pendente',fR(kPend),'danger',nDocsPend+' documento(s) vencido(s)','Saldo n\u00e3o pago de cada vencimento passado, acumulado e rolante.');
   renderOjiResumoDatas();
 }
