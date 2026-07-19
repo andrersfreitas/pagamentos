@@ -1213,6 +1213,36 @@ var PER = 20;
 function fD(s){ if(!s)return'—'; var p=s.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 function fR(v){ return Math.abs(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
 function stCls(k){ return k==='ok'?'b-ok':k==='late'?'b-late':k==='due'?'b-due':'b-open'; }
+function stColors(k){
+  return {
+    sc:k==='ok'?'#15803d':k==='late'?'#92400e':k==='due'?'#991b1b':'#1d4ed8',
+    bg:k==='ok'?'#dcfce7':k==='late'?'#fef3c7':k==='due'?'#fee2e2':'#dbeafe'
+  };
+}
+// Estatísticas agregadas de CONS — usado pelo Dashboard e pela exportação Excel,
+// para garantir que os dois sempre mostrem os mesmos números.
+function computeConsStats(data){
+  var tval=0,pval=0,tok=0,tlate=0,tdue=0,topen=0,pmrSoma=0,pmrN=0;
+  var vOk=0,vLate=0,vDue=0,vOpen=0,tickCte=0,nCte=0,tickNfs=0,nNfs=0;
+  data.forEach(function(r){
+    tval+=r.val;
+    if(r.pgto){ pval+=r.val; }
+    if(r.tipo==='CTe'){tickCte+=r.val;nCte++;}else{tickNfs+=r.val;nNfs++;}
+    if(r.stKey==='ok'){ tok++; vOk+=r.val;
+      if(r.em&&r.pgto){ var d=Math.round((new Date(r.pgto+'T00:00:00')-new Date(r.em+'T00:00:00'))/86400000); if(d>=0){pmrSoma+=d;pmrN++;} }
+    } else if(r.stKey==='late'){ tlate++; vLate+=r.val;
+      if(r.em&&r.pgto){ var d=Math.round((new Date(r.pgto+'T00:00:00')-new Date(r.em+'T00:00:00'))/86400000); if(d>=0){pmrSoma+=d;pmrN++;} }
+    } else if(r.stKey==='due'){ tdue++; vDue+=r.val; }
+    else{ topen++; vOpen+=r.val; }
+  });
+  return {
+    tval:tval, pval:pval, tok:tok, tlate:tlate, tdue:tdue, topen:topen,
+    vOk:vOk, vLate:vLate, vDue:vDue, vOpen:vOpen,
+    tickCte:tickCte, nCte:nCte, tickNfs:tickNfs, nNfs:nNfs,
+    pmr: pmrN>0 ? Math.round(pmrSoma/pmrN) : 0,
+    txInadPct: data.length>0 ? (tdue/data.length*100) : 0
+  };
+}
 function bCls(t){ return t==='CTe'?'b-cte':'b-nfs'; }
 
 var TOLERANCIA_ATRASO_DIAS = 5; // pagamentos até N dias depois do vencimento contam como "Pago em dia"
@@ -1977,8 +2007,7 @@ function buildPDFHTML(data){
 
   // Tabela de documentos
   var rows=data.map(function(r){
-    var sc=r.stKey==='ok'?'#15803d':r.stKey==='late'?'#92400e':r.stKey==='due'?'#991b1b':'#1d4ed8';
-    var bg=r.stKey==='ok'?'#dcfce7':r.stKey==='late'?'#fef3c7':r.stKey==='due'?'#fee2e2':'#dbeafe';
+    var _stc=stColors(r.stKey), sc=_stc.sc, bg=_stc.bg;
     var rowBg=r.stKey==='due'?'#fff5f5':'';
     return '<tr style="border-bottom:1px solid #f5f5f4'+(rowBg?';background:'+rowBg:'')+'">'
       +(r.stKey==='due'?'<td style="padding:5px 8px;font-weight:700;color:#dc2626">'+r.doc+'</td>':'<td style="padding:5px 8px;font-weight:600">'+r.doc+'</td>')
@@ -2182,8 +2211,7 @@ function previewPDF(){
       return '<th style="padding:7px 10px;border-bottom:1px solid #e7e5e4;font-size:10px;font-weight:600;color:#78716c;text-align:'+(i===5?'right':'left')+';text-transform:uppercase;white-space:nowrap">'+h+'</th>';
     }).join('')+'</tr></thead><tbody>'
     +data.slice(0,200).map(function(r){
-      var sc=r.stKey==='ok'?'#15803d':r.stKey==='late'?'#92400e':r.stKey==='due'?'#991b1b':'#1d4ed8';
-      var bg=r.stKey==='ok'?'#dcfce7':r.stKey==='late'?'#fef3c7':r.stKey==='due'?'#fee2e2':'#dbeafe';
+      var _stc=stColors(r.stKey), sc=_stc.sc, bg=_stc.bg;
       var rowBg=r.stKey==='due'?'background:#fff5f5;':'';
       return '<tr style="border-bottom:1px solid #f5f5f4;'+rowBg+'">'
         +'<td style="padding:6px 10px;font-weight:'+(r.stKey==='due'?'700':'600')+';color:'+(r.stKey==='due'?'#dc2626':'#1c1917')+'">'+r.doc+'</td>'
@@ -2887,27 +2915,15 @@ function showImportMsg(added, replaced, errors, tipo){
 // ── DASHBOARD (SVG puro, sem dependências externas) ───────
 function renderDashboard(){
   var data=CONS;
-  var tval=0,pval=0,tok=0,tlate=0,tdue=0,topen=0;
-  var pmrSoma=0,pmrN=0;
   var hoje=getToday();
 
-  data.forEach(function(r){
-    tval+=r.val;
-    if(r.pgto){ pval+=r.val; }
-    if(r.stKey==='ok'){ tok++;
-      if(r.em&&r.pgto){ var d=Math.round((new Date(r.pgto+'T00:00:00')-new Date(r.em+'T00:00:00'))/86400000); if(d>=0){pmrSoma+=d;pmrN++;} }
-    } else if(r.stKey==='late'){ tlate++;
-      if(r.em&&r.pgto){ var d=Math.round((new Date(r.pgto+'T00:00:00')-new Date(r.em+'T00:00:00'))/86400000); if(d>=0){pmrSoma+=d;pmrN++;} }
-    } else if(r.stKey==='due') tdue++;
-    else topen++;
-  });
-
-  var pmr = pmrN>0 ? Math.round(pmrSoma/pmrN) : 0;
-  var txInad = data.length>0 ? (tdue/data.length*100).toFixed(1) : 0;
-  var aval = data.filter(function(r){return r.stKey==='open';}).reduce(function(a,r){return a+r.val;},0);
-  var dueVal = data.filter(function(r){return r.stKey==='due';}).reduce(function(a,r){return a+r.val;},0);
-  var tickCte=0,nCte=0,tickNfs=0,nNfs=0;
-  data.forEach(function(r){ if(r.tipo==='CTe'){tickCte+=r.val;nCte++;} else{tickNfs+=r.val;nNfs++;} });
+  var _st=computeConsStats(data);
+  var tval=_st.tval, pval=_st.pval, tok=_st.tok, tlate=_st.tlate, tdue=_st.tdue, topen=_st.topen;
+  var pmr=_st.pmr;
+  var txInad=_st.txInadPct.toFixed(1);
+  var aval=_st.vOpen;
+  var dueVal=_st.vDue;
+  var tickCte=_st.tickCte, nCte=_st.nCte, tickNfs=_st.tickNfs, nNfs=_st.nNfs;
 
   // próximo vencimento
   var proxDocs=data.filter(function(r){return r.stKey==='open'&&r.venc;}).sort(function(a,b){return a.venc<b.venc?-1:1;});
@@ -3822,25 +3838,15 @@ function exportarExcel(){
       var _ep=new Date('1899-12-30T00:00:00');
       function _ser(d){return d?Math.round((new Date(d+'T00:00:00')-_ep)/86400000):0;}
 
-      // ── STATS — mesma lógica do renderDashboard() ──
-      var tval=0,pval=0,tok=0,tlate=0,tdue=0,topen=0,pmrSoma=0,pmrN=0;
-      var vOk=0,vLate=0,vDue=0,vOpen=0;
-      var tickCte=0,nCte=0,tickNfs=0,nNfs=0;
+      // ── STATS — mesma função usada pelo Dashboard (computeConsStats) ──
       var todayMs=new Date().setHours(0,0,0,0);
       var hojeD=new Date(todayMs);
-      CONS.forEach(function(r){
-        var v=fV(r.val); tval+=v;
-        if(r.pgto) pval+=v;
-        if(r.tipo==='CTe'){tickCte+=v;nCte++;}else{tickNfs+=v;nNfs++;}
-        if(r.stKey==='ok'){tok++;vOk+=v;
-          if(r.em&&r.pgto){var d=Math.round((new Date(r.pgto+'T00:00:00')-new Date(r.em+'T00:00:00'))/86400000);if(d>=0){pmrSoma+=d;pmrN++;}}
-        }else if(r.stKey==='late'){tlate++;vLate+=v;
-          if(r.em&&r.pgto){var d=Math.round((new Date(r.pgto+'T00:00:00')-new Date(r.em+'T00:00:00'))/86400000);if(d>=0){pmrSoma+=d;pmrN++;}}
-        }else if(r.stKey==='due'){tdue++;vDue+=v;}
-        else{topen++;vOpen+=v;}
-      });
-      var pmr=pmrN>0?Math.round(pmrSoma/pmrN):0;
-      var txInad=CONS.length>0?(tdue/CONS.length*100).toFixed(1)+'%':'0%';
+      var _st=computeConsStats(CONS);
+      var tval=_st.tval, pval=_st.pval, tok=_st.tok, tlate=_st.tlate, tdue=_st.tdue, topen=_st.topen;
+      var vOpen=_st.vOpen;
+      var tickCte=_st.tickCte, nCte=_st.nCte, tickNfs=_st.tickNfs, nNfs=_st.nNfs;
+      var pmr=_st.pmr;
+      var txInad=(_st.txInadPct.toFixed(1))+'%';
       var pctRec=tval>0?Math.round(pval/tval*100)+'%':'0%';
       var avgCte=nCte?tickCte/nCte:0;
       var avgNfs=nNfs?tickNfs/nNfs:0;
