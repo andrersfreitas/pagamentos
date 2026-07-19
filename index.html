@@ -260,9 +260,8 @@ body.modo-consulta .mtab{pointer-events:none}
   .pdf-opts{flex-direction:column;gap:12px}
   .dr{flex-direction:column;gap:6px}
 
-  /* Dashboard mobile — empilha todas as grids de 2 colunas */
-  #page-dashboard > div[style*="grid-template-columns:2fr"],
-  #page-dashboard > div[style*="grid-template-columns:1fr 1fr"]{
+  /* Dashboard mobile — todos os painéis em coluna única */
+  #page-dashboard > div[style*="grid-template-columns"]{
     grid-template-columns:1fr!important
   }
 
