@@ -3068,7 +3068,7 @@ function renderDashboard(){
       +'</div>';
   });
   tickHTML+='</div>';
-  document.getElementById('chart-ticket').innerHTML=tickHTML;
+  if(document.getElementById('chart-ticket')) document.getElementById('chart-ticket').innerHTML=tickHTML;
 
   // ── Donut status ──
   var stData=[tok,tlate,tdue,topen];
@@ -3096,14 +3096,14 @@ function renderDashboard(){
   svgS+='<text x="'+cx+'" y="'+(cy-6)+'" text-anchor="middle" font-size="20" font-weight="700" fill="#1c1917">'+total2+'</text>';
   svgS+='<text x="'+cx+'" y="'+(cy+12)+'" text-anchor="middle" font-size="9" fill="#78716c">documentos</text>';
   svgS+='</svg>';
-  document.getElementById('chart-status').innerHTML=svgS;
+  if(document.getElementById('chart-status')) document.getElementById('chart-status').innerHTML=svgS;
   var leg='';
   stLbls.forEach(function(l,i){
     leg+='<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#78716c">'
       +'<span style="width:10px;height:10px;border-radius:50%;background:'+stCols[i]+';flex-shrink:0;display:inline-block"></span>'
       +l+': <strong>'+stData[i]+'</strong></div>';
   });
-  document.getElementById('dash-legend').innerHTML=leg;
+  if(document.getElementById('dash-legend')) document.getElementById('dash-legend').innerHTML=leg;
 
   // ── Tabela por tipo de veículo ──
   var tipoMap={};
