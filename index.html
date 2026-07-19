@@ -1547,11 +1547,24 @@ function renderO(){
     if(vd<hoje) _kAccum=Math.max(0,_kAccum+((_kFat[d]||0)-(_kPago[d]||0)));
   });
   var kPend=_kAccum;
+  function ojiCard(bordaCor,iconBg,iconHtml,labelCor,label,val,valCor,sub,desc){
+    return '<div style="background:#1c1917;border:1px solid #44403c;border-left:4px solid '+bordaCor+';border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:0">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+        +'<div style="width:30px;height:30px;border-radius:8px;background:'+iconBg+';display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">'+iconHtml+'</div>'
+        +'<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:'+labelCor+'">'+label+'</span>'
+      +'</div>'
+      +'<div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;color:'+valCor+';line-height:1.2;margin-bottom:3px">'+val+'</div>'
+      +'<div style="font-size:11px;color:#78716c;margin-bottom:10px">'+sub+'</div>'
+      +'<div style="height:1px;background:#292524;margin-bottom:10px"></div>'
+      +'<div style="font-size:11px;color:#6b7280;line-height:1.5">'+desc+'</div>'
+    +'</div>';
+  }
+  var saldoValCor=kSaldo>0?'#d97706':kSaldo<0?'#4ade80':'#a8a29e';
   document.getElementById('cards-oji').innerHTML=
-    mkC('accent','Faturado',fR(kFat),CONS.length+' documentos')+
-    mkC('','Pago',fR(kPago),'pagamentos OJI')+
-    mkC('late','Saldo',fR(kSaldo),'faturado \u2212 pago')+
-    mkC('danger','Pendente',fR(kPend),'saldo vencido acumulado');
+    ojiCard('#3b82f6','rgba(59,130,246,.18)','\ud83d\udcc4','#60a5fa','Faturado',fR(kFat),'#f5f5f4',CONS.length+' documentos','Valor total faturado por data can\u00f4nica de vencimento, independente da data de pagamento.')+
+    ojiCard('#22c55e','rgba(34,197,94,.18)','\u2713','#4ade80','Pago',fR(kPago),'#4ade80',PAG_OJI.filter(function(r){return r.valor<0;}).length+' pagamentos','Valor total efetivamente recebido no per\u00edodo, normalizado para a data can\u00f4nica correspondente.')+
+    ojiCard('#f59e0b','rgba(245,158,11,.18)','\u23f1','#fbbf24','Saldo',fR(Math.abs(kSaldo)),saldoValCor,(kSaldo<0?'pagou mais que o faturado':'a receber no total'),'<span style="font-size:10px;font-weight:600;color:#a8a29e">SALDO = FATURADO \u2013 PAGO</span><br><span style="color:#78716c">'+fR(kFat)+' \u2013 '+fR(kPago)+'</span>')+
+    ojiCard('#ef4444','rgba(239,68,68,.18)','\u26a0','#f87171','Pendente',fR(kPend),'#f87171','saldo acumulado vencido','Saldo n\u00e3o pago de cada vencimento passado, acumulado e rolante.');
   renderOjiResumoDatas();
 }
 
@@ -1607,7 +1620,7 @@ function renderOjiResumoDatas(){
   datas.forEach(function(d){var m=d.slice(0,7);if(!meses[m])meses[m]=[];meses[m].push(d);});
   var mesKeys=Object.keys(meses).sort().reverse();
   if(_ojiAccOpen===null){_ojiAccOpen={};}
-  var G='display:grid;grid-template-columns:160px 1fr 1fr 1fr 1fr 20px;align-items:center;';
+  var G='display:grid;grid-template-columns:160px 1fr 1fr 1fr 1fr 44px 20px;align-items:center;';
   var TH='font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;text-align:right;padding:6px 14px 6px 0;';
   var TD='font-size:13px;font-variant-numeric:tabular-nums;text-align:right;padding:10px 14px 10px 0;';
   var MESES_PT=['Janeiro','Fevereiro','Mar\u00e7o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -1622,6 +1635,7 @@ function renderOjiResumoDatas(){
     +'<span style="'+TH+'color:#16a34a">Pago</span>'
     +'<span style="'+TH+'color:#d97706">Saldo \u24d8</span>'
     +'<span style="'+TH+'color:#dc2626">Pendente \u24d8</span>'
+    +'<span style="'+TH+'color:#a8a29e;text-align:right;padding-right:0">Docs</span>'
     +'<span></span>'
   +'</div>';
   mesKeys.forEach(function(m){
@@ -1642,6 +1656,7 @@ function renderOjiResumoDatas(){
       +'<span style="'+TD+'color:#16a34a;font-weight:600">'+fR(mPago)+'</span>'
       +'<span style="'+TD+'font-weight:600;color:'+saldoCor(mSaldo)+'">'+saldoFmt(mSaldo)+'</span>'
       +'<span style="'+TD+'font-weight:600;color:#dc2626">'+(mPend>0?fR(mPend):'\u2014')+'</span>'
+      +'<span style="font-size:13px;font-weight:600;color:#a8a29e;text-align:right;padding-right:4px">'+nDocs+'</span>'
       +'<span style="font-size:10px;color:#a8a29e;text-align:right;transition:transform .15s;display:inline-block;transform:'+(open?'rotate(180deg)':'rotate(0deg)')+'">\u25bc</span>'
     +'</div>';
     if(open){
@@ -1651,6 +1666,7 @@ function renderOjiResumoDatas(){
         +'<span style="'+TH+'color:#16a34a">Pago</span>'
         +'<span style="'+TH+'color:#d97706">Saldo</span>'
         +'<span style="'+TH+'color:#dc2626">Pendente acum.</span>'
+        +'<span style="'+TH+'color:#a8a29e;text-align:right;padding-right:0">Docs</span>'
         +'<span></span>'
       +'</div>';
       meses[m].forEach(function(d){
@@ -1660,12 +1676,12 @@ function renderOjiResumoDatas(){
         html+='<div style="'+G+'padding:9px 16px;border-top:1px solid #f0efee" class="oji-acc-row">'
           +'<div style="padding-left:18px">'
             +'<span style="font-size:13px;color:#78716c">'+fD(d)+'</span>'
-            +(nd?'<span style="font-size:11px;color:#a8a29e;margin-left:6px">'+nd+' doc(s)</span>':'')
           +'</div>'
           +'<span style="'+TD+'color:#2563eb">'+fR(fat)+'</span>'
           +'<span style="'+TD+'color:#16a34a">'+fR(pago)+'</span>'
           +'<span style="'+TD+'color:'+saldoCor(saldo)+'">'+saldoFmt(saldo)+'</span>'
           +'<span style="'+TD+'color:#dc2626">'+(pend!==undefined?fR(pend):'\u2014')+'</span>'
+          +'<span style="font-size:13px;color:#a8a29e;text-align:right;padding-right:4px">'+(nd||'\u2014')+'</span>'
           +'<span></span>'
         +'</div>';
       });
@@ -1675,6 +1691,7 @@ function renderOjiResumoDatas(){
         +'<span style="'+TD+'font-weight:700;color:#16a34a">'+fR(mPago)+'</span>'
         +'<span style="'+TD+'font-weight:700;color:'+saldoCor(mSaldo)+'">'+saldoFmt(mSaldo)+'</span>'
         +'<span style="'+TD+'font-weight:700;color:#dc2626">'+(mPend>0?fR(mPend):'\u2014')+'</span>'
+        +'<span style="font-size:13px;font-weight:700;color:#a8a29e;text-align:right;padding-right:4px">'+nDocs+'</span>'
         +'<span></span>'
       +'</div>';
     }
