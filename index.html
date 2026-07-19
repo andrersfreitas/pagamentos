@@ -373,6 +373,9 @@ body.modo-consulta .mtab{pointer-events:none}
 [data-theme="dark"] .btn-voltar-home{background:#1c1917;border-color:#57534e;color:#fafaf9}
 [data-theme="dark"] .btn-voltar-home:hover{background:#292524}
 [data-theme="dark"] .dash-bar-wrap{background:#292524}
+[data-theme="dark"] .dash-svg-grid{stroke:#44403c}
+[data-theme="dark"] .dash-svg-lbl{fill:#a8a29e}
+[data-theme="dark"] .dash-svg-lbl2{fill:#78716c}
 [data-theme="dark"] .topbar-sub{color:#57534e}
 [data-theme="dark"] .modal-bg .modal{background:#1c1917}
 [data-theme="dark"] .modal-head{border-bottom-color:#44403c}
@@ -1204,7 +1207,7 @@ var MO=["2026-05","2026-04","2026-03","2026-02","2026-01","2025-12","2025-11","2
 
 
 // ── UTILS ──
-var TODAY = new Date(); TODAY.setHours(0,0,0,0);
+function getToday(){ var d=new Date(); d.setHours(0,0,0,0); return d; }
 var PER = 20;
 
 function fD(s){ if(!s)return'—'; var p=s.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
@@ -1223,6 +1226,7 @@ function calcSt(pgto,venc){
     if(d<=TOLERANCIA_ATRASO_DIAS) return {key:'ok',lbl:'Pago em dia (tol. '+d+'d)'};
     return {key:'late',lbl:'Pago c/ atraso ('+d+'d)'};
   }
+  var TODAY=getToday();
   if(TODAY>v){ var d=Math.round((TODAY-v)/86400000); return {key:'due',lbl:'Vencido ('+d+'d)'}; }
   var d=Math.round((v-TODAY)/86400000);
   return {key:'open',lbl:'A vencer ('+d+'d)'};
@@ -1667,7 +1671,7 @@ function renderOjiResumoDatas(){
   var TD='font-size:13px;font-variant-numeric:tabular-nums;text-align:right;padding:10px 14px 10px 0;';
   var MESES_PT=['Janeiro','Fevereiro','Mar\u00e7o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   function mesLbl(m){var p=m.split('-');return MESES_PT[parseInt(p[1],10)-1]+' '+p[0];}
-  function saldoCor(s){return s<0?'#16a34a':s===0?'#a8a29e':'#d97706';}
+  function saldoCor(s){return s<-0.005?'#16a34a':Math.abs(s)<=0.005?'#a8a29e':'#d97706';}
   function saldoFmt(s){return (s<0?'\u2212':'')+fR(Math.abs(s));}
   var html='';
   // Cabe\u00e7alho fixo de colunas
@@ -2336,7 +2340,7 @@ function processFile(tipo,input){
           val=parseFloat((getCol(r,['valor','valor do servi\u00e7o'])||'0').replace(',','.'));
           vei=(getCol(r,['veiculo','ve\u00edculo','placa'])||'').toUpperCase();
         }
-        if(!em||!doc||isNaN(val)||val===0){errors.push(i+2);return;}
+        if(!em||!doc||isNaN(val)){errors.push(i+2);return;}
         parsed.push({doc:doc,em:em,val:val,vei:vei||''});
       });
     }
@@ -2885,7 +2889,7 @@ function renderDashboard(){
   var data=CONS;
   var tval=0,pval=0,tok=0,tlate=0,tdue=0,topen=0;
   var pmrSoma=0,pmrN=0;
-  var hoje=TODAY;
+  var hoje=getToday();
 
   data.forEach(function(r){
     tval+=r.val;
@@ -2944,8 +2948,8 @@ function renderDashboard(){
   var svgM='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:100%" xmlns="http://www.w3.org/2000/svg">';
   [0,0.25,0.5,0.75,1].forEach(function(f){
     var y=PT+(H-PT-PB)*(1-f);
-    svgM+='<line x1="'+PL+'" y1="'+y+'" x2="'+(W-PR)+'" y2="'+y+'" stroke="#f5f5f4" stroke-width="1"/>';
-    svgM+='<text x="'+(PL-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="9" fill="#a8a29e">R$'+((maxM*f/1000).toFixed(0))+'k</text>';
+    svgM+='<line class="dash-svg-grid" x1="'+PL+'" y1="'+y+'" x2="'+(W-PR)+'" y2="'+y+'" stroke="#f5f5f4" stroke-width="1"/>';
+    svgM+='<text class="dash-svg-lbl2" x="'+(PL-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="9" fill="#a8a29e">R$'+((maxM*f/1000).toFixed(0))+'k</text>';
   });
   mKeys.forEach(function(m,i){
     var x=PL+i*gap+gap/2;
@@ -2955,10 +2959,10 @@ function renderDashboard(){
     var lblFull=new Date(m.split('-')[0],m.split('-')[1]-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
     svgM+='<rect x="'+(x-bw-2)+'" y="'+yEm+'" width="'+bw+'" height="'+hEm+'" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" rx="2"><title>'+lblFull+'\nEmitido: '+fR(meses[m].em)+'</title></rect>';
     svgM+='<rect x="'+(x+2)+'" y="'+yPg+'" width="'+bw+'" height="'+hPg+'" fill="#bbf7d0" stroke="#16a34a" stroke-width="1" rx="2"><title>'+lblFull+'\nRecebido: '+fR(meses[m].pago)+'</title></rect>';
-    svgM+='<text x="'+x+'" y="'+(H-PB+14)+'" text-anchor="middle" font-size="10" fill="#78716c">'+new Date(m.split('-')[0],m.split('-')[1]-1,1).toLocaleDateString('pt-BR',{month:'short'})+'</text>';
+    svgM+='<text class="dash-svg-lbl" x="'+x+'" y="'+(H-PB+14)+'" text-anchor="middle" font-size="10" fill="#78716c">'+new Date(m.split('-')[0],m.split('-')[1]-1,1).toLocaleDateString('pt-BR',{month:'short'})+'</text>';
   });
-  svgM+='<rect x="'+PL+'" y="4" width="10" height="10" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" rx="2"/><text x="'+(PL+14)+'" y="13" font-size="10" fill="#78716c">Emitido</text>';
-  svgM+='<rect x="'+(PL+70)+'" y="4" width="10" height="10" fill="#bbf7d0" stroke="#16a34a" stroke-width="1" rx="2"/><text x="'+(PL+84)+'" y="13" font-size="10" fill="#78716c">Recebido</text>';
+  svgM+='<rect x="'+PL+'" y="4" width="10" height="10" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" rx="2"/><text class="dash-svg-lbl" x="'+(PL+14)+'" y="13" font-size="10" fill="#78716c">Emitido</text>';
+  svgM+='<rect x="'+(PL+70)+'" y="4" width="10" height="10" fill="#bbf7d0" stroke="#16a34a" stroke-width="1" rx="2"/><text class="dash-svg-lbl" x="'+(PL+84)+'" y="13" font-size="10" fill="#78716c">Recebido</text>';
   svgM+='</svg>';
   document.getElementById('chart-mensal').innerHTML=svgM;
 
@@ -3596,7 +3600,7 @@ function carregarDados(){
           var st = calcSt(r.pgto, venc);
           CONS.push({
             id:r.id, doc:r.doc, tipo:r.tipo, em:r.em, venc:venc,
-            pgto:r.pgto, val:parseFloat(r.val), vei:r.vei||'',
+            pgto:r.pgto, val:parseFloat(r.val)||0, vei:r.vei||'',
             stKey:st.key, stLbl:st.lbl
           });
         });
@@ -3604,7 +3608,7 @@ function carregarDados(){
         // Substituir PAG_OJI
         PAG_OJI.length = 0;
         pag_data.forEach(function(r){
-          PAG_OJI.push({id:r.id, doc:r.doc, data:r.data, valor:parseFloat(r.valor)});
+          PAG_OJI.push({id:r.id, doc:r.doc, data:r.data, valor:parseFloat(r.valor)||0});
         });
 
         // O que acabou de vir da nuvem já está, por definição, em sincronia —
@@ -4496,7 +4500,7 @@ function carregarFrete(){
       return {id:r.id, origem:r.origem, destino:r.destino, km:r.km,
               pedagio_ida:(r.pedagio_ida!=null ? parseFloat(r.pedagio_ida) : null),
               pedagio_volta:(r.pedagio_volta!=null ? parseFloat(r.pedagio_volta) : null),
-              pickup:parseFloat(r.pickup), truck:parseFloat(r.truck), carreta:parseFloat(r.carreta)};
+              pickup:parseFloat(r.pickup)||0, truck:parseFloat(r.truck)||0, carreta:parseFloat(r.carreta)||0};
     });
     try{ localStorage.setItem('tabela_frete_cache', JSON.stringify(FRETE)); }catch(e){}
   })
