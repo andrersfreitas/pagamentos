@@ -292,7 +292,7 @@ function exportarExcel(){
         var tr=tblStart+ti;
         var vTbl='IF(C'+tr+'="","",IF(DAY(C'+tr+')<=10,DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+1,10),IF(DAY(C'+tr+')<=20,DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+1,20),DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+1,30))))';
         var gTbl="IF(A"+tr+"=\"\",\"\",IFERROR(VLOOKUP(A"+tr+",'Pagamentos OJI'!A:B,2,0),\"\"))";
-        var hTbl='IF(AND(A'+tr+'="",C'+tr+'=""),"",IF(F'+tr+'="","Sem vencimento",IF(G'+tr+'="",IF(F'+tr+'<TODAY(),"Vencido ("&INT(TODAY()-F'+tr+')&"d)","A vencer ("&INT(F'+tr+'-TODAY())&"d)"),IF(G'+tr+'<=F'+tr+',"Pago em dia",IF(G'+tr+'<=F'+tr+'+5,"Pago em dia (tol. "&INT(G'+tr+'-F'+tr+')&"d)","Pago c/ atraso ("&INT(G'+tr+'-F'+tr+')&"d)"))))))';
+        var hTbl='IF(AND(A'+tr+'="",C'+tr+'=""),"",IF(F'+tr+'="","Sem vencimento",IF(G'+tr+'="",IF(F'+tr+'<TODAY(),"Vencido ("&INT(TODAY()-F'+tr+')&"d)","A vencer ("&INT(F'+tr+'-TODAY())&"d)"),IF(G'+tr+'<=F'+tr+',"Pago em dia",IF(G'+tr+'<=F'+tr+'+5,"Pago em dia (tol. "&INT(G'+tr+'-F'+tr+')&"d)","Pago c/ atraso ("&INT(G'+tr+'-F'+tr+')&"d)")))))';
         c6.push([S(''),S(''),S(''),S(''),S(''),F(vTbl,0,3,'n'),F(gTbl,0,3,'n'),F(hTbl,'',0,'str')]);
       }
       // Data validations: Tipo e Veículo no formulário e na tabela
