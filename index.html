@@ -395,25 +395,28 @@
   <!-- IMPORTAR ARQUIVOS -->
   <div class="panel" style="padding:22px;margin-bottom:16px">
     <div style="font-size:15px;font-weight:600;margin-bottom:4px">&#x1F4C2; Importar arquivos</div>
-    <div style="font-size:13px;color:#78716c;margin-bottom:12px">Aceita <strong>CSV</strong> e <strong>XML</strong>. Clique no bot&#xE3;o ou arraste o arquivo diretamente.</div>
+    <div style="font-size:13px;color:#78716c;margin-bottom:12px">Aceita <strong>CSV</strong>, <strong>XLSX</strong> e <strong>XML</strong>. Clique no bot&#xE3;o, arraste o arquivo ou cole o texto direto.</div>
     <div class="imp-btns">
       <label class="imp-btn" id="drop-cte">
         <div class="imp-icon">&#x1F4E6;</div>
         <div class="imp-name">IMPORT CTe</div>
-        <div class="imp-hint">CSV ou XML de CT-e</div>
-        <input type="file" accept=".csv,.xml" onchange="processFile('cte',this)">
+        <div class="imp-hint">CSV, XLSX ou XML de CT-e</div>
+        <div class="imp-paste-link" onclick="event.stopPropagation();event.preventDefault();abrirColarModal('cte')">ou colar dados</div>
+        <input type="file" accept=".csv,.xml,.xlsx" onchange="processFile('cte',this)">
       </label>
       <label class="imp-btn" id="drop-nfs">
         <div class="imp-icon">&#x1F9FE;</div>
         <div class="imp-name">IMPORT NFS</div>
-        <div class="imp-hint">CSV ou XML de NFS-e</div>
-        <input type="file" accept=".csv,.xml" onchange="processFile('nfs',this)">
+        <div class="imp-hint">CSV, XLSX ou XML de NFS-e</div>
+        <div class="imp-paste-link" onclick="event.stopPropagation();event.preventDefault();abrirColarModal('nfs')">ou colar dados</div>
+        <input type="file" accept=".csv,.xml,.xlsx" onchange="processFile('nfs',this)">
       </label>
       <label class="imp-btn" id="drop-pag">
         <div class="imp-icon">&#x1F4B0;</div>
         <div class="imp-name">IMPORT PGTO</div>
-        <div class="imp-hint">CSV de pagamentos</div>
-        <input type="file" accept=".csv" onchange="processFile('pag',this)">
+        <div class="imp-hint">CSV ou XLSX de pagamentos</div>
+        <div class="imp-paste-link" onclick="event.stopPropagation();event.preventDefault();abrirColarModal('pag')">ou colar dados</div>
+        <input type="file" accept=".csv,.xlsx" onchange="processFile('pag',this)">
       </label>
     </div>
     <div class="smsg" id="msg-import"></div>

@@ -87,71 +87,563 @@ function parseXMLNFS(xml){
 
 function processFile(tipo,input){
   var file=input.files[0]; if(!file)return;
-  var isXML=file.name.toLowerCase().endsWith('.xml');
+  var name=file.name.toLowerCase();
+  var isXML=name.endsWith('.xml');
+  var isXLSX=name.endsWith('.xlsx');
+
+  if(isXLSX){
+    parseXLSXRows(file).then(function(rows){
+      _handleParsedRows(tipo, rows, file.name);
+    }).catch(function(err){
+      console.error('Erro ao ler XLSX:', err);
+      showImportMsg(0,0,['arquivo'],tipo);
+    });
+    input.value=''; return;
+  }
+
   var reader=new FileReader();
   reader.onload=function(e){
     var text=e.target.result;
-    var newItems=[], errors=[];
-    var pagMap={};
-    CONS.forEach(function(c){if(c.pgto)pagMap[c.doc]=c.pgto;});
-    PAG_OJI.forEach(function(p){if(p.data&&p.valor<0)pagMap[p.doc]=p.data;});
 
-    if(tipo==='pag'){
-      var rows=parseCSV(text);
-      rows.forEach(function(r,i){
-        var doc=parseInt(getCol(r,['documento','doc','numero','n\u00famero','n\u00ba','nro']));
-        var data=normDate(getCol(r,['data','data pagamento','data_pagamento','datapagamento']));
-        var val=parseFloat((getCol(r,['valor'])||'0').replace(',','.'));
-        if(!doc||!data||isNaN(val)){errors.push(i+2);return;}
-        newItems.push({doc:doc,data:data,valor:val});
-      });
-      handlePagImport(newItems,errors);
+    if(isXML){
+      var parsed=[], errors=[];
+      var pagMap={};
+      CONS.forEach(function(c){if(c.pgto)pagMap[c.doc]=c.pgto;});
+      PAG_OJI.forEach(function(p){if(p.data&&p.valor<0)pagMap[p.doc]=p.data;});
+      var r=(tipo==='cte')?parseXMLCTe(text):parseXMLNFS(text);
+      if(r) parsed.push(r);
+      else errors.push('XML inválido ou cancelado/não OJI');
+      if(parsed.length>0){
+        mostrarConfirmacaoXML(tipo, parsed, errors, pagMap);
+      } else {
+        showImportMsg(0,0,errors,tipo);
+      }
       input.value=''; return;
     }
 
-    // CTe ou NFS — CSV ou XML
-    var parsed=[];
-    if(isXML){
-      var r=(tipo==='cte')?parseXMLCTe(text):parseXMLNFS(text);
-      if(r) parsed.push(r);
-      else errors.push('XML inv\u00e1lido ou cancelado/n\u00e3o OJI');
-      // XML: mostrar tela de confirmação/resumo antes de importar
-      if(parsed.length>0){
-        mostrarConfirmacaoXML(tipo, parsed, errors, pagMap);
-        input.value=''; return;
-      } else {
-        showImportMsg(0,0,errors,tipo);
-        input.value=''; return;
-      }
-    } else {
-      var rows=parseCSV(text);
-      rows.forEach(function(r,i){
-        var em,doc,val,vei;
-        if(tipo==='cte'){
-          em=normDate(getCol(r,['emissao','emiss\u00e3o','data emissao','data_emissao','emiss\u00e3o','data']));
-          doc=parseInt(getCol(r,['documento','doc','ct-e','cte','numero','n\u00famero','n\u00ba','nro']));
-          val=parseFloat((getCol(r,['valor','frete'])||'0').replace(',','.'));
-          vei=(getCol(r,['veiculo','ve\u00edculo','placa'])||'').toUpperCase();
-        } else {
-          em=normDate(getCol(r,['emissao','emiss\u00e3o','data emissao','data_emissao','data de emiss\u00e3o','data']));
-          doc=parseInt(getCol(r,['documento','doc','n\u00famero da nota','numero','n\u00famero','n\u00ba','nro']));
-          val=parseFloat((getCol(r,['valor','valor do servi\u00e7o'])||'0').replace(',','.'));
-          vei=(getCol(r,['veiculo','ve\u00edculo','placa'])||'').toUpperCase();
-        }
-        if(!em||!doc||isNaN(val)){errors.push(i+2);return;}
-        parsed.push({doc:doc,em:em,val:val,vei:vei||''});
-      });
-    }
-
-    parsed.forEach(function(p){
-      var venc=calcVenc(p.em), pgto=pagMap[p.doc]||null;
-      var st=calcSt(pgto,venc);
-      newItems.push({doc:p.doc,tipo:tipo==='cte'?'CTe':'NFSe',em:p.em,venc:venc,pgto:pgto,val:p.val,vei:p.vei,stKey:st.key,stLbl:st.lbl});
-    });
-    handleConsImport(newItems,errors,tipo);
+    _handleParsedRows(tipo, parseCSV(text), file.name);
     input.value='';
   };
   reader.readAsText(file, isXML?'utf-8':'latin-1');
+}
+
+// Recebe linhas já tabuladas (de CSV, XLSX ou texto colado) e decide o próximo
+// passo: se as colunas não batem com nenhum alias conhecido, abre o mapeamento
+// manual (lembrando a escolha pra próxima vez); senão, vai direto pra prévia.
+function _handleParsedRows(tipo, rows, sourceLabel){
+  var result=_parseRows(tipo, rows);
+  if(result.items.length===0 && rows.length>0){
+    var headers=Object.keys(rows[0]);
+    var remembered=_loadMapping(tipo, headers);
+    if(remembered){
+      var mapped=_applyMapping(rows, remembered);
+      var result2=_parseRows(tipo, mapped);
+      mostrarPreviewImportacao(tipo, result2.items, result2.errors, sourceLabel);
+      return;
+    }
+    mostrarMapeamentoColunas(tipo, rows, sourceLabel);
+    return;
+  }
+  mostrarPreviewImportacao(tipo, result.items, result.errors, sourceLabel);
+}
+
+// Lê linhas já tabuladas (parseCSV) e devolve os itens prontos para gravar,
+// junto com a lista de linhas rejeitadas por formato inválido.
+function _parseRows(tipo, rows){
+  var items=[], errors=[];
+  var pagMap={};
+  CONS.forEach(function(c){if(c.pgto)pagMap[c.doc]=c.pgto;});
+  PAG_OJI.forEach(function(p){if(p.data&&p.valor<0)pagMap[p.doc]=p.data;});
+
+  if(tipo==='pag'){
+    rows.forEach(function(r,i){
+      var doc=parseInt(getCol(r,['documento','doc','numero','número','nº','nro']));
+      var data=normDate(getCol(r,['data','data pagamento','data_pagamento','datapagamento']));
+      var val=parseFloat((getCol(r,['valor'])||'0').replace(',','.'));
+      if(!doc||!data||isNaN(val)){errors.push(i+2);return;}
+      items.push({doc:doc,data:data,valor:val});
+    });
+    return {items:items, errors:errors};
+  }
+
+  var parsed=[];
+  rows.forEach(function(r,i){
+    var em,doc,val,vei;
+    if(tipo==='cte'){
+      em=normDate(getCol(r,['emissao','emissão','data emissao','data_emissao','emissão','data']));
+      doc=parseInt(getCol(r,['documento','doc','ct-e','cte','numero','número','nº','nro']));
+      val=parseFloat((getCol(r,['valor','frete'])||'0').replace(',','.'));
+      vei=(getCol(r,['veiculo','veículo','placa'])||'').toUpperCase();
+    } else {
+      em=normDate(getCol(r,['emissao','emissão','data emissao','data_emissao','data de emissão','data']));
+      doc=parseInt(getCol(r,['documento','doc','número da nota','numero','número','nº','nro']));
+      val=parseFloat((getCol(r,['valor','valor do serviço'])||'0').replace(',','.'));
+      vei=(getCol(r,['veiculo','veículo','placa'])||'').toUpperCase();
+    }
+    if(!em||!doc||isNaN(val)){errors.push(i+2);return;}
+    parsed.push({doc:doc,em:em,val:val,vei:vei||''});
+  });
+
+  parsed.forEach(function(p){
+    var venc=calcVenc(p.em), pgto=pagMap[p.doc]||null;
+    var st=calcSt(pgto,venc);
+    items.push({doc:p.doc,tipo:tipo==='cte'?'CTe':'NFSe',em:p.em,venc:venc,pgto:pgto,val:p.val,vei:p.vei,stKey:st.key,stLbl:st.lbl});
+  });
+  return {items:items, errors:errors};
+}
+
+// ── XLSX (leitura) ─ lê o .xlsx como ZIP nativo do navegador, sem depender
+// de biblioteca externa, e devolve linhas no mesmo formato de parseCSV
+// (array de objetos, chaves = cabeçalho em minúsculas).
+function _xmlDecodeEntities(s){
+  return String(s).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&');
+}
+function _zipFindEntry(bytes, dv, path){
+  var eocd=-1;
+  for(var i=bytes.length-22;i>=0;i--){ if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;} }
+  if(eocd<0) throw new Error('Arquivo ZIP/XLSX inválido');
+  var cdOff=dv.getUint32(eocd+16,true), cdCount=dv.getUint16(eocd+10,true);
+  var p=cdOff;
+  for(var i=0;i<cdCount;i++){
+    if(dv.getUint32(p,true)!==0x02014b50) break;
+    var method=dv.getUint16(p+10,true);
+    var compSize=dv.getUint32(p+20,true);
+    var nameLen=dv.getUint16(p+28,true), extraLen=dv.getUint16(p+30,true), commLen=dv.getUint16(p+32,true);
+    var lho=dv.getUint32(p+42,true);
+    var name='';
+    for(var j=0;j<nameLen;j++) name+=String.fromCharCode(bytes[p+46+j]);
+    if(name===path){
+      var lNameLen=dv.getUint16(lho+26,true), lExtraLen=dv.getUint16(lho+28,true);
+      var dataStart=lho+30+lNameLen+lExtraLen;
+      return {method:method, data:bytes.slice(dataStart,dataStart+compSize)};
+    }
+    p+=46+nameLen+extraLen+commLen;
+  }
+  return null;
+}
+function _inflateRawBytes(bytes){
+  var ds=new DecompressionStream('deflate-raw');
+  var stream=new Blob([bytes]).stream().pipeThrough(ds);
+  return new Response(stream).arrayBuffer().then(function(buf){return new Uint8Array(buf);});
+}
+function _readZipXml(bytes, dv, path){
+  var entry=_zipFindEntry(bytes, dv, path);
+  if(!entry) return Promise.resolve(null);
+  var raw = entry.method===0 ? Promise.resolve(entry.data) : _inflateRawBytes(entry.data);
+  return raw.then(function(b){ return new TextDecoder('utf-8').decode(b); });
+}
+function _parseSharedStrings(xml){
+  if(!xml) return [];
+  var res=[], re=/<si>([\s\S]*?)<\/si>/g, m;
+  while((m=re.exec(xml))!==null) res.push(_xmlDecodeEntities(m[1].replace(/<[^>]+>/g,'')));
+  return res;
+}
+// Identifica, por índice de estilo (atributo s="" da célula), se o numFmt aplicado é de data
+function _parseDateStyles(xml){
+  if(!xml) return [];
+  var customFmts={}, re=/<numFmt numFmtId="(\d+)" formatCode="([^"]*)"/g, m;
+  while((m=re.exec(xml))!==null) customFmts[m[1]]=_xmlDecodeEntities(m[2]);
+  var builtinDateIds={14:1,15:1,16:1,17:1,18:1,19:1,20:1,21:1,22:1,45:1,46:1,47:1};
+  var xfsBlock=(xml.match(/<cellXfs[^>]*>([\s\S]*?)<\/cellXfs>/)||[])[1]||'';
+  var xfs=[], re2=/<xf\b[^>]*\/?>/g, mm;
+  while((mm=re2.exec(xfsBlock))!==null){
+    var nfMatch=mm[0].match(/numFmtId="(\d+)"/), nf=nfMatch?nfMatch[1]:'0';
+    var code=customFmts[nf];
+    var isDate = !!builtinDateIds[nf] || (!!code && /[dmy]/i.test(code) && code.indexOf('0')<0);
+    xfs.push(isDate);
+  }
+  return xfs;
+}
+function _xlsxSerialToDateStr(n){
+  var ms=Date.UTC(1899,11,30)+Math.round(n)*86400000;
+  var d=new Date(ms);
+  return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+}
+function _colLettersToIndex(letters){
+  var n=0; for(var i=0;i<letters.length;i++) n=n*26+(letters.charCodeAt(i)-64); return n-1;
+}
+function _parseSheetRows(xml, sst, dateStyles){
+  var rows=[], rowRe=/<row[^>]*>([\s\S]*?)<\/row>/g, rm;
+  while((rm=rowRe.exec(xml))!==null){
+    var cells=[], cellRe=/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, cm;
+    while((cm=cellRe.exec(rm[1]))!==null){
+      var attrs=cm[1], inner=cm[2]||'';
+      var refMatch=attrs.match(/r="([A-Z]+)\d+"/);
+      var col=refMatch?_colLettersToIndex(refMatch[1]):cells.length;
+      var typeMatch=attrs.match(/t="([^"]+)"/), type=typeMatch?typeMatch[1]:'n';
+      var styleMatch=attrs.match(/s="(\d+)"/), styleIdx=styleMatch?parseInt(styleMatch[1],10):0;
+      var val='';
+      if(type==='s'){
+        var vM=inner.match(/<v>([\s\S]*?)<\/v>/);
+        val=vM?(sst[parseInt(vM[1],10)]||''):'';
+      } else if(type==='inlineStr'){
+        var tM=inner.match(/<t[^>]*>([\s\S]*?)<\/t>/);
+        val=tM?_xmlDecodeEntities(tM[1]):'';
+      } else {
+        var vM2=inner.match(/<v>([\s\S]*?)<\/v>/);
+        var raw=vM2?vM2[1]:'';
+        val = (raw!=='' && dateStyles[styleIdx]) ? _xlsxSerialToDateStr(parseFloat(raw)) : raw;
+      }
+      cells[col]=val;
+    }
+    rows.push(cells);
+  }
+  return rows;
+}
+function parseXLSXRows(file){
+  return file.arrayBuffer().then(function(buf){
+    var bytes=new Uint8Array(buf), dv=new DataView(buf);
+    return Promise.all([
+      _readZipXml(bytes,dv,'xl/worksheets/sheet1.xml'),
+      _readZipXml(bytes,dv,'xl/sharedStrings.xml'),
+      _readZipXml(bytes,dv,'xl/styles.xml')
+    ]).then(function(res){
+      var sheetXml=res[0], sstXml=res[1], stylesXml=res[2];
+      if(!sheetXml) return [];
+      var sst=_parseSharedStrings(sstXml);
+      var dateStyles=_parseDateStyles(stylesXml);
+      var rowsRaw=_parseSheetRows(sheetXml, sst, dateStyles);
+      if(!rowsRaw.length) return [];
+      var header=(rowsRaw[0]||[]).map(function(h){return String(h==null?'':h).trim().toLowerCase();});
+      var out=[];
+      for(var i=1;i<rowsRaw.length;i++){
+        var r=rowsRaw[i];
+        if(!r || r.every(function(c){return c===undefined||c==='';})) continue;
+        var obj={};
+        header.forEach(function(h,j){ obj[h]=r[j]!==undefined?String(r[j]):''; });
+        out.push(obj);
+      }
+      return out;
+    });
+  });
+}
+
+// ── MAPEAMENTO MANUAL DE COLUNAS ──────────────────────────
+// Quando nenhum alias conhecido bate com o cabeçalho do arquivo, o usuário
+// mapeia manualmente uma vez; a escolha fica salva (por tipo + assinatura do
+// cabeçalho) para os próximos arquivos no mesmo formato.
+var _mapTipo=null, _mapRows=null, _mapSourceLabel=null;
+
+function _headerSignature(headers){ return headers.slice().sort().join('|'); }
+function _mapKey(tipo, headers){ return 'colmap_'+tipo+'_'+_headerSignature(headers); }
+function _loadMapping(tipo, headers){
+  try{ var raw=localStorage.getItem(_mapKey(tipo,headers)); return raw?JSON.parse(raw):null; }catch(e){ return null; }
+}
+function _saveMapping(tipo, headers, mapping){
+  try{ localStorage.setItem(_mapKey(tipo,headers), JSON.stringify(mapping)); }catch(e){}
+}
+function _applyMapping(rows, mapping){
+  return rows.map(function(r){
+    var out={};
+    Object.keys(mapping.fields).forEach(function(canonKey){
+      var srcHeader=mapping.fields[canonKey];
+      if(!srcHeader) return;
+      var v=r[srcHeader];
+      if(canonKey==='documento' && mapping.stripSuffix && v){ v=String(v).split('-')[0]; }
+      out[canonKey]=v;
+    });
+    return out;
+  });
+}
+function _guessCanonField(tipo, header){
+  var aliasMap = tipo==='pag'
+    ? {documento:['documento','doc','numero','número','nº','nro'], data:['data','data pagamento','data_pagamento','datapagamento'], valor:['valor']}
+    : {documento:['documento','doc','ct-e','cte','numero','número','nº','nro'], emissao:['emissao','emissão','data emissao','data_emissao','data de emissão','data'], valor:['valor','frete','valor do serviço'], veiculo:['veiculo','veículo','placa']};
+  for(var k in aliasMap){ if(aliasMap[k].indexOf(header)>=0) return k; }
+  return '';
+}
+
+function mostrarMapeamentoColunas(tipo, rows, sourceLabel){
+  _mapTipo=tipo; _mapRows=rows; _mapSourceLabel=sourceLabel;
+  var headers=Object.keys(rows[0]);
+  var opts = tipo==='pag'
+    ? [['documento','Documento'],['data','Data do pagamento'],['valor','Valor'],['','Ignorar']]
+    : [['documento','Documento'],['emissao','Emissão'],['valor','Valor'],['veiculo','Veículo'],['','Ignorar']];
+
+  var rowsHtml='';
+  headers.forEach(function(h,i){
+    var example=rows[0][h]||'';
+    var g=_guessCanonField(tipo,h);
+    rowsHtml+='<tr>'
+      +'<td style="font-weight:500">'+(h||'(vazio)')+'</td>'
+      +'<td class="map-example">'+example+'</td>'
+      +'<td><select id="map-col-'+i+'" class="map-select">'
+      +opts.map(function(o){return '<option value="'+o[0]+'"'+(o[0]===g?' selected':'')+'>'+o[1]+'</option>';}).join('')
+      +'</select></td></tr>';
+  });
+
+  var html='<div class="modal-bg" id="modal-mapeamento-bg"><div class="modal" style="max-width:640px">'
+    +'<div class="modal-head"><h2>Não reconhecemos todas as colunas</h2>'
+    +'<p>Diga o que é cada uma. Da próxima vez que vier nesse formato, o sistema já lembra.</p></div>'
+    +'<div class="modal-body">'
+    +'<table class="prev-table"><thead><tr><th>Coluna no arquivo</th><th>Exemplo</th><th>É o quê?</th></tr></thead><tbody>'+rowsHtml+'</tbody></table>'
+    +'<div class="map-note">'
+    +'<label style="display:flex;align-items:center;gap:8px;font-size:13px">'
+    +'<input type="checkbox" id="map-strip-suffix"> A coluna Documento tem um sufixo pra remover (ex: "8941-1" → 8941)'
+    +'</label></div>'
+    +'</div>'
+    +'<div class="modal-foot"><span class="modal-foot-info"></span><div class="modal-foot-btns">'
+    +'<button class="dup-btn dup-btn-both" onclick="cancelarMapeamento()">Cancelar</button>'
+    +'<button class="dup-btn dup-btn-replace" onclick="confirmarMapeamento()">Continuar → ver prévia</button>'
+    +'</div></div>'
+    +'</div></div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.body.style.overflow='hidden';
+}
+
+function cancelarMapeamento(){
+  document.getElementById('modal-mapeamento-bg').remove();
+  document.body.style.overflow='';
+  _mapTipo=null; _mapRows=null; _mapSourceLabel=null;
+}
+
+function confirmarMapeamento(){
+  var headers=Object.keys(_mapRows[0]);
+  var fields={};
+  headers.forEach(function(h,i){
+    var v=document.getElementById('map-col-'+i).value;
+    if(v) fields[v]=h;
+  });
+  var stripSuffix=document.getElementById('map-strip-suffix').checked;
+  var mapping={fields:fields, stripSuffix:stripSuffix};
+  _saveMapping(_mapTipo, headers, mapping);
+
+  var mapped=_applyMapping(_mapRows, mapping);
+  var result=_parseRows(_mapTipo, mapped);
+  var tipo=_mapTipo, sourceLabel=_mapSourceLabel;
+
+  document.getElementById('modal-mapeamento-bg').remove();
+  document.body.style.overflow='';
+  _mapTipo=null; _mapRows=null; _mapSourceLabel=null;
+
+  mostrarPreviewImportacao(tipo, result.items, result.errors, sourceLabel);
+}
+
+// ── COLAR TEXTO (planilha copiada ou e-mail) ──────────────
+function abrirColarModal(tipo){
+  var t=(tipo==='cte'?'CTe':tipo==='nfs'?'NFS-e':'Pagamento');
+  var html='<div class="modal-bg" id="modal-colar-bg"><div class="modal" style="max-width:600px">'
+    +'<div class="modal-head"><h2>Colar dados de '+t+'</h2>'
+    +'<p>Cole uma planilha copiada (Excel/CSV) ou o texto do e-mail.</p></div>'
+    +'<div class="modal-body">'
+    +'<textarea id="colar-texto" class="colar-textarea" placeholder="Cole aqui..." oninput="_onColarInput(\''+tipo+'\')"></textarea>'
+    +(tipo==='pag'
+      ? '<div style="margin-top:12px;display:flex;align-items:center;gap:10px">'
+        +'<label style="font-size:12px;color:#78716c">Data do pagamento</label>'
+        +'<input type="date" id="colar-data" class="colar-data-input">'
+        +'<span id="colar-data-auto" class="prev-badge prev-badge-new" style="display:none">detectada automaticamente</span>'
+        +'</div>'
+      : '')
+    +'</div>'
+    +'<div class="modal-foot"><span class="modal-foot-info"></span><div class="modal-foot-btns">'
+    +'<button class="dup-btn dup-btn-both" onclick="fecharColarModal()">Cancelar</button>'
+    +'<button class="dup-btn dup-btn-replace" onclick="processarColado(\''+tipo+'\')">Processar</button>'
+    +'</div></div>'
+    +'</div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.body.style.overflow='hidden';
+  document.getElementById('colar-texto').focus();
+}
+
+function fecharColarModal(){
+  var el=document.getElementById('modal-colar-bg');
+  if(el) el.remove();
+  document.body.style.overflow='';
+}
+
+function _detectarDataNoTexto(txt){
+  var m=txt.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+  if(!m) return null;
+  var dd=('0'+m[1]).slice(-2), mm=('0'+m[2]).slice(-2);
+  var yyyy = m[3] ? (m[3].length===2?'20'+m[3]:m[3]) : String(getToday().getFullYear());
+  return yyyy+'-'+mm+'-'+dd;
+}
+
+function _onColarInput(tipo){
+  if(tipo!=='pag') return;
+  var txt=document.getElementById('colar-texto').value;
+  var d=_detectarDataNoTexto(txt);
+  var campo=document.getElementById('colar-data'), badge=document.getElementById('colar-data-auto');
+  if(d){ campo.value=d; badge.style.display='inline-block'; }
+  else { badge.style.display='none'; }
+}
+
+// Reconhece linhas do padrão "documento-N  valor,centavos-" usado nos
+// e-mails de composição de pagamento da OJI; ignora qualquer linha que não
+// bata (saudação, assinatura, linha de total).
+function _parseTextoEmailPagamento(txt, dataISO){
+  var items=[], errors=[];
+  txt.split(/\r?\n/).forEach(function(line){
+    var m=line.trim().match(/^(\d+)-\d+\s+([\d.]+,\d{2})(-?)\s*$/);
+    if(!m) return;
+    var doc=parseInt(m[1],10);
+    var raw=parseFloat(m[2].replace(/\./g,'').replace(',','.'));
+    var val=m[3]==='-'?-raw:raw;
+    if(!doc||isNaN(val)||!dataISO) return;
+    items.push({doc:doc, data:dataISO, valor:val});
+  });
+  return {items:items, errors:errors};
+}
+
+function processarColado(tipo){
+  var txt=document.getElementById('colar-texto').value;
+  var dataISO = tipo==='pag' ? document.getElementById('colar-data').value : null;
+  if(!txt.trim()) return;
+
+  // Padrão de e-mail da OJI é bem específico (documento-N  valor,cc-), então
+  // testamos ele primeiro — evita confundir vírgulas de texto corrido com
+  // separador de tabela.
+  if(tipo==='pag'){
+    var pareceEmail=/^\s*\d+-\d+\s+[\d.]+,\d{2}-?\s*$/m.test(txt);
+    if(pareceEmail && !dataISO){
+      alert('Informe a data do pagamento antes de processar.');
+      return;
+    }
+    if(pareceEmail){
+      var emailResult=_parseTextoEmailPagamento(txt, dataISO);
+      fecharColarModal();
+      mostrarPreviewImportacao('pag', emailResult.items, emailResult.errors, 'texto colado (e-mail)');
+      return;
+    }
+  }
+
+  var linhas=txt.trim().split(/\r?\n/).filter(function(l){return l.trim()!=='';});
+  var comSeparador=linhas.filter(function(l){return l.indexOf(';')>=0||l.indexOf('\t')>=0||l.indexOf(',')>=0;}).length;
+  var temSeparador = linhas.length>0 && (comSeparador/linhas.length)>0.6;
+
+  fecharColarModal();
+
+  if(temSeparador){
+    _handleParsedRows(tipo, parseCSV(txt), 'texto colado');
+    return;
+  }
+
+  alert('Não foi possível reconhecer o formato colado.');
+}
+
+// ── PRÉVIA DE IMPORTAÇÃO (lote CSV) ───────────────────────
+var _previewTipo=null, _previewItems=null, _previewErrors=null;
+
+function mostrarPreviewImportacao(tipo, items, errors, fileName){
+  _previewTipo=tipo; _previewItems=items; _previewErrors=errors;
+  var t=(tipo==='cte'?'CTe':tipo==='nfs'?'NFS-e':'Pagamento');
+
+  if(items.length===0){
+    showImportMsg(0,0,errors,tipo);
+    return;
+  }
+
+  var existMap={};
+  if(tipo==='pag'){
+    PAG_OJI.forEach(function(p){if(!existMap[p.doc])existMap[p.doc]=true;});
+  } else {
+    CONS.forEach(function(c){existMap[c.doc]=true;});
+  }
+
+  var totalVal=0;
+  items.forEach(function(it){ totalVal += (tipo==='pag'?it.valor:it.val); });
+
+  var rowsHtml='';
+  items.forEach(function(it,i){
+    var jaExiste = !!existMap[it.doc];
+    var badge = jaExiste
+      ? '<span class="prev-badge prev-badge-dup">Já existe no sistema</span>'
+      : '<span class="prev-badge prev-badge-new">Novo</span>';
+    if(tipo==='pag'){
+      rowsHtml+='<tr id="prev-row-'+i+'">'
+        +'<td><input type="checkbox" checked onchange="_previewToggle('+i+',this.checked)"></td>'
+        +'<td>'+it.doc+'</td>'
+        +'<td>'+fD(it.data)+'</td>'
+        +'<td style="text-align:right">'+fR(it.valor)+'</td>'
+        +'<td>'+badge+'</td>'
+        +'</tr>';
+    } else {
+      rowsHtml+='<tr id="prev-row-'+i+'">'
+        +'<td><input type="checkbox" checked onchange="_previewToggle('+i+',this.checked)"></td>'
+        +'<td>'+it.doc+'</td>'
+        +'<td>'+fD(it.em)+'</td>'
+        +'<td>'+(it.vei||'—')+'</td>'
+        +'<td style="text-align:right">'+fR(it.val)+'</td>'
+        +'<td>'+badge+'</td>'
+        +'</tr>';
+    }
+  });
+
+  errors.forEach(function(linha){
+    var cols = tipo==='pag' ? 5 : 6;
+    rowsHtml+='<tr class="prev-row-err"><td colspan="'+cols+'">Erro na linha '+linha+' — formato inválido, linha ignorada</td></tr>';
+  });
+
+  var headCols = tipo==='pag'
+    ? '<th></th><th>Documento</th><th>Data pagamento</th><th style="text-align:right">Valor</th><th>Status</th>'
+    : '<th></th><th>Documento</th><th>Emissão</th><th>Veículo</th><th style="text-align:right">Valor</th><th>Status</th>';
+
+  var html = '<div class="modal-bg" id="modal-preview-bg">'
+    +'<div class="modal" style="max-width:720px">'
+    +'<div class="modal-head">'
+    +'<h2>Confirmar importação de '+t+'</h2>'
+    +'<p>'+(fileName||'')+' — '+items.length+' registro(s) lido(s)'+(errors.length?', '+errors.length+' com erro':'')+'. Desmarque o que não quer importar.</p>'
+    +'</div>'
+    +'<div class="modal-body">'
+    +'<div class="prev-stats">'
+    +'<div class="prev-stat"><div class="prev-stat-lbl">A importar</div><div class="prev-stat-val" id="prev-count-ok">'+items.length+'</div></div>'
+    +'<div class="prev-stat"><div class="prev-stat-lbl">Com erro</div><div class="prev-stat-val prev-stat-err">'+errors.length+'</div></div>'
+    +'<div class="prev-stat"><div class="prev-stat-lbl">Valor total</div><div class="prev-stat-val" id="prev-total-val">'+fR(totalVal)+'</div></div>'
+    +'</div>'
+    +'<table class="prev-table"><thead><tr>'+headCols+'</tr></thead><tbody id="prev-tbody">'+rowsHtml+'</tbody></table>'
+    +'</div>'
+    +'<div class="modal-foot">'
+    +'<span class="modal-foot-info" id="prev-foot-info">'+items.length+' selecionado(s)</span>'
+    +'<div class="modal-foot-btns">'
+    +'<button class="dup-btn dup-btn-both" onclick="cancelarPreviewImportacao()">Cancelar</button>'
+    +'<button class="dup-btn dup-btn-replace" id="prev-confirm-btn" onclick="confirmarPreviewImportacao()">Confirmar '+items.length+' registro(s)</button>'
+    +'</div></div>'
+    +'</div></div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.body.style.overflow='hidden';
+}
+
+function _previewToggle(i, checked){
+  document.getElementById('prev-row-'+i).style.opacity = checked?'1':'.4';
+  var n = _previewItems.filter(function(it,idx){
+    var chk=document.getElementById('prev-row-'+idx).querySelector('input[type=checkbox]');
+    return chk && chk.checked;
+  }).length;
+  document.getElementById('prev-foot-info').textContent=n+' selecionado(s)';
+  document.getElementById('prev-confirm-btn').textContent='Confirmar '+n+' registro(s)';
+  var totalVal=0;
+  _previewItems.forEach(function(it,idx){
+    var chk=document.getElementById('prev-row-'+idx).querySelector('input[type=checkbox]');
+    if(chk && chk.checked) totalVal += (_previewTipo==='pag'?it.valor:it.val);
+  });
+  document.getElementById('prev-total-val').textContent=fR(totalVal);
+}
+
+function cancelarPreviewImportacao(){
+  document.getElementById('modal-preview-bg').remove();
+  document.body.style.overflow='';
+  _previewTipo=null; _previewItems=null; _previewErrors=null;
+}
+
+function confirmarPreviewImportacao(){
+  var selecionados=[];
+  _previewItems.forEach(function(it,idx){
+    var chk=document.getElementById('prev-row-'+idx).querySelector('input[type=checkbox]');
+    if(chk && chk.checked) selecionados.push(it);
+  });
+  var tipo=_previewTipo, errors=_previewErrors;
+  document.getElementById('modal-preview-bg').remove();
+  document.body.style.overflow='';
+  if(selecionados.length===0){
+    showImportMsg(0,0,errors,tipo);
+    _previewTipo=null; _previewItems=null; _previewErrors=null;
+    return;
+  }
+  if(tipo==='pag') handlePagImport(selecionados, errors);
+  else handleConsImport(selecionados, errors, tipo);
+  _previewTipo=null; _previewItems=null; _previewErrors=null;
 }
 
 // ── TELA DE CONFIRMAÇÃO XML ───────────────────────────────

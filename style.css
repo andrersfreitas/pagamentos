@@ -119,11 +119,13 @@ tfoot td{padding:10px 14px;font-size:13px;font-weight:600;border-top:2px solid #
 .btn-dark{background:#1c1917;color:#fff}.btn-dark:hover{background:#292524}
 /* IMPORT */
 .imp-btns{display:flex;gap:14px;flex-wrap:wrap;margin-top:16px}
-.imp-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:190px;height:130px;border:2px dashed #d6d3d1;border-radius:12px;background:#fff;cursor:pointer;transition:all .2s;text-decoration:none}
+.imp-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:190px;height:150px;border:2px dashed #d6d3d1;border-radius:12px;background:#fff;cursor:pointer;transition:all .2s;text-decoration:none}
 .imp-btn:hover,.imp-btn.drag{border-color:#1c1917;background:#fafaf9}
 .imp-icon{font-size:30px}
 .imp-name{font-size:14px;font-weight:700;color:#1c1917}
 .imp-hint{font-size:11px;color:#a8a29e;text-align:center;padding:0 8px}
+.imp-paste-link{font-size:11px;color:#2563eb;text-decoration:underline;cursor:pointer}
+.imp-paste-link:hover{color:#1d4ed8}
 .imp-btn input{display:none}
 .smsg{margin-top:14px;padding:10px 14px;border-radius:8px;font-size:13px;display:none}
 .msg-ok{background:#dcfce7;color:#15803d}.msg-err{background:#fee2e2;color:#991b1b}
@@ -164,6 +166,24 @@ tfoot td{padding:10px 14px;font-size:13px;font-weight:600;border-top:2px solid #
 .modal-foot{padding:16px 24px;border-top:1px solid #e7e5e4;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;flex-wrap:wrap;gap:8px}
 .modal-foot-info{font-size:13px;color:#78716c}
 .modal-foot-btns{display:flex;gap:8px}
+.prev-stats{display:flex;gap:10px;margin-bottom:14px}
+.prev-stat{background:#f5f5f4;border-radius:8px;padding:8px 14px;flex:1}
+.prev-stat-lbl{font-size:11px;color:#78716c}
+.prev-stat-val{font-size:18px;font-weight:600;color:#1c1917}
+.prev-stat-err{color:#991b1b}
+.prev-table{width:100%;border-collapse:collapse;font-size:13px}
+.prev-table thead tr{background:#f5f5f4;color:#78716c;text-align:left}
+.prev-table th,.prev-table td{padding:7px 10px}
+.prev-table tbody tr{border-top:1px solid #e7e5e4;transition:opacity .15s}
+.prev-row-err td{color:#991b1b;font-size:12px;text-align:center;padding:6px 10px}
+.prev-badge{font-size:11px;padding:2px 8px;border-radius:10px}
+.prev-badge-new{background:#dcfce7;color:#15803d}
+.prev-badge-dup{background:#fef3c7;color:#92400e}
+.map-example{color:#78716c}
+.map-select{width:100%;height:32px;border-radius:6px;border:1px solid #d6d3d1;background:#fff;font-size:12px;padding:0 6px}
+.map-note{background:#f5f5f4;border-radius:8px;padding:12px 14px;margin-top:14px}
+.colar-textarea{width:100%;height:160px;border:1px solid #d6d3d1;border-radius:8px;padding:10px 12px;font-size:12px;font-family:ui-monospace,monospace;line-height:1.6;resize:vertical;box-sizing:border-box}
+.colar-data-input{height:34px;padding:0 10px;border-radius:8px;border:1px solid #d6d3d1;font-size:13px}
 .btn-apply-all{height:34px;padding:0 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:#1c1917;color:#fff}
 .btn-apply-all:hover{background:#292524}
 .btn-cancel-modal{height:34px;padding:0 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid #d6d3d1;background:#fff;color:#1c1917}
@@ -284,9 +304,10 @@ body.modo-consulta .mtab{pointer-events:none}
 
   /* Import mobile */
   .imp-btns{flex-direction:column;gap:10px}
-  .imp-btn{width:100%;height:90px;flex-direction:row;justify-content:flex-start;padding:0 16px;gap:12px}
+  .imp-btn{width:100%;height:auto;min-height:90px;flex-direction:row;flex-wrap:wrap;justify-content:flex-start;padding:12px 16px;gap:4px 12px}
   .imp-icon{font-size:22px}
   .imp-hint{text-align:left}
+  .imp-paste-link{flex-basis:100%;text-align:left;padding-left:42px}
 
   /* Formulário manual mobile */
   .form-grid{grid-template-columns:1fr 1fr}
@@ -381,6 +402,18 @@ body.modo-consulta .mtab{pointer-events:none}
 [data-theme="dark"] .modal-body{background:#1c1917}
 [data-theme="dark"] .modal-foot{border-top-color:#44403c;background:#1c1917}
 [data-theme="dark"] .modal-foot-info{color:#a8a29e}
+[data-theme="dark"] .prev-stat{background:#292524}
+[data-theme="dark"] .prev-stat-val{color:#fafaf9}
+[data-theme="dark"] .prev-table thead tr{background:#292524;color:#a8a29e}
+[data-theme="dark"] .prev-table tbody tr{border-top-color:#44403c}
+[data-theme="dark"] .prev-row-err td{color:#fca5a5}
+[data-theme="dark"] .map-example{color:#a8a29e}
+[data-theme="dark"] .map-select{background:#292524;border-color:#57534e;color:#fafaf9}
+[data-theme="dark"] .map-note{background:#292524}
+[data-theme="dark"] .colar-textarea{background:#0c0a09;border-color:#44403c;color:#d4d0cb}
+[data-theme="dark"] .colar-data-input{background:#292524;border-color:#57534e;color:#fafaf9}
+[data-theme="dark"] .imp-paste-link{color:#60a5fa}
+[data-theme="dark"] .imp-paste-link:hover{color:#93c5fd}
 [data-theme="dark"] .dup-item{border-color:#44403c}
 [data-theme="dark"] .dup-header{background:#0c0a09;border-bottom-color:#44403c;color:#a8a29e}
 [data-theme="dark"] .dup-doc{color:#fafaf9}
