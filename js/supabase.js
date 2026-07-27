@@ -218,11 +218,12 @@ function sincronizarTabela(nomeTabela, itens, idsCarregados, syncCache, mapParaS
 }
 
 function sincronizarSupabase(){
-  // Evitar sync desnecessário se dados não mudaram
-  var currentHash = CONS.length + ':' + PAG_OJI.length + ':' +
-    (CONS.reduce(function(a,r){return a+r.val;},0)|0);
+  // Evitar sync desnecessário se dados não mudaram — usa o mesmo payload que
+  // seria enviado ao Supabase, então qualquer edição de campo (placa, status,
+  // data de pagamento, etc.) muda o hash, não só contagem/soma de valores.
+  var currentHash = JSON.stringify(CONS.map(mapConsParaSupabase)) + '|' + JSON.stringify(PAG_OJI.map(mapPagParaSupabase));
   if(currentHash === _lastSyncHash){
-    setBadge('\u2713 Sem altera\u00E7\u00F5es para sincronizar', true);
+    setBadge('✓ Sem alterações para sincronizar', true);
     return;
   }
   setBadge('\u231B Sincronizando...', true);
