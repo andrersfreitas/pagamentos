@@ -76,65 +76,70 @@ function closeAllMS(){
 }
 document.addEventListener('click',function(e){ if(!e.target.closest('.fg'))closeAllMS(); });
 
-// Build dropdowns
-buildMS('tipo',[{v:'CTe',l:'CTe'},{v:'NFSe',l:'NFS-e'}],af);
-buildMS('status',[
-  {v:'ok',l:'Pago em dia'},{v:'late',l:'Pago c/ atraso'},
-  {v:'due',l:'Vencido'},{v:'open',l:'A vencer'}
-],af);
+// Build dropdowns — chamado por _iniciarApp() (app-init.js), não na carga do
+// script. ui-core.js carrega antes de consolidado.js/oji.js/pdf-relatorios.js
+// /import.js, então af/afOji/atualizarResumo/rebuildOjiAnoFilter só existem
+// depois que todos os scripts terminam de carregar; chamar isso direto aqui
+// (no nível superior do arquivo) lançava ReferenceError e travava o resto
+// deste bloco, deixando Tipo/Status/Veículo/Placa/Tipo(OJI) sem opções.
+function initFilterDropdowns(){
+  buildMS('tipo',[{v:'CTe',l:'CTe'},{v:'NFSe',l:'NFS-e'}],af);
+  buildMS('status',[
+    {v:'ok',l:'Pago em dia'},{v:'late',l:'Pago c/ atraso'},
+    {v:'due',l:'Vencido'},{v:'open',l:'A vencer'}
+  ],af);
 
-(function(){
   buildMS('veiculo',VEICS.map(function(v){return {v:v,l:v};}),af);
   buildMS('pdfveic',VEICS.map(function(v){return {v:v,l:v};}),atualizarResumo);
 
-function rebuildVeicFilter(){
-  [{id:'veiculo',cb:af},{id:'pdfveic',cb:atualizarResumo}].forEach(function(cfg){
-  var id=cfg.id;
-  var dd=document.getElementById('ms-'+id);
-  if(!dd) return;
-  // Guardar seleção atual
-  var checked=getChk(id);
-  dd.innerHTML='';
-  msChecked[id]=[];
-  VEICS.forEach(function(v){
-    var lbl=document.createElement('label');
-    lbl.className='msitem';
-    var chk=document.createElement('input');
-    chk.type='checkbox'; chk.value=v;
-    if(checked.indexOf(v)>=0) chk.checked=true;
-    chk.onchange=function(){ msChecked[id]=getChk(id); updLbl(id); cfg.cb(); };
-    lbl.appendChild(chk);
-    lbl.appendChild(document.createTextNode(' '+v));
-    dd.appendChild(lbl);
-  });
-  var clr=document.createElement('button');
-  clr.className='msclr'; clr.textContent='Limpar sele\u00e7\u00e3o';
-  clr.onclick=function(e){ e.stopPropagation(); clrMS(id,cfg.cb); };
-  dd.appendChild(clr);
-  updLbl(id);
-  });
-}
-})();
-(function(){
   buildMS('mes',MC.map(function(m){
     var p=m.split('-');
     return {v:m,l:new Date(p[0],p[1]-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})};
   }),af);
-})();
-(function(){
+
   buildMS('ojimes',MO.map(function(m){
     var p=m.split('-');
     return {v:m,l:new Date(p[0],p[1]-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})};
   }),afOji);
-})();
-(function(){
-  buildMS('ojitipo',[{v:'pag',l:'Pagamento'},{v:'cred',l:'Cr\u00e9dito / Estorno'}],afOji);
-})();
-(function(){
+
+  buildMS('ojitipo',[{v:'pag',l:'Pagamento'},{v:'cred',l:'Crédito / Estorno'}],afOji);
+
   rebuildOjiAnoFilter();
   // Selecionar o ano atual por padrão na primeira carga
   var anoAtual=String(new Date().getFullYear());
   var chk=document.querySelector('#ms-ojiano input[value="'+anoAtual+'"]');
   if(chk){ chk.checked=true; msChecked['ojiano']=[anoAtual]; updLbl('ojiano'); }
-})();
+}
+
+// Reconstrói o filtro de Veículo/Placa a partir do array VEICS atual.
+// Função global de propósito — antes ficava presa dentro de um IIFE, o que
+// a tornava inacessível para quem tentava chamá-la de outros arquivos
+// (ReferenceError silencioso via os checks "typeof ==='function'").
+function rebuildVeicFilter(){
+  [{id:'veiculo',cb:af},{id:'pdfveic',cb:atualizarResumo}].forEach(function(cfg){
+    var id=cfg.id;
+    var dd=document.getElementById('ms-'+id);
+    if(!dd) return;
+    // Guardar seleção atual
+    var checked=getChk(id);
+    dd.innerHTML='';
+    msChecked[id]=[];
+    VEICS.forEach(function(v){
+      var lbl=document.createElement('label');
+      lbl.className='msitem';
+      var chk=document.createElement('input');
+      chk.type='checkbox'; chk.value=v;
+      if(checked.indexOf(v)>=0) chk.checked=true;
+      chk.onchange=function(){ msChecked[id]=getChk(id); updLbl(id); cfg.cb(); };
+      lbl.appendChild(chk);
+      lbl.appendChild(document.createTextNode(' '+v));
+      dd.appendChild(lbl);
+    });
+    var clr=document.createElement('button');
+    clr.className='msclr'; clr.textContent='Limpar seleção';
+    clr.onclick=function(e){ e.stopPropagation(); clrMS(id,cfg.cb); };
+    dd.appendChild(clr);
+    updLbl(id);
+  });
+}
 

@@ -123,6 +123,7 @@ function corrigirDivergenciasOji(){
 }
 
 function _iniciarApp(){
+  initFilterDropdowns();
   carregarDados().then(function(){
     if(typeof rebuildConsMesFilter==='function') rebuildConsMesFilter();
     af();
