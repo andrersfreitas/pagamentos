@@ -353,6 +353,10 @@ body.modo-consulta .mtab{pointer-events:none}
 [data-theme="dark"] .tab:hover,[data-theme="dark"] .tab.active{color:#fafaf9}
 [data-theme="dark"] .tab.active{border-bottom-color:#fafaf9}
 [data-theme="dark"] .panel{background:#1c1917;border-color:#44403c}
+/* #pdf-resumo: id direta, não depende do texto do atributo style (que o
+   navegador reescreve pra rgb() assim que o JS toca .style.display, o que
+   quebra os seletores [style*="#hex"] usados como override genérico acima). */
+[data-theme="dark"] #pdf-resumo{background:#0c0a09!important;border-color:#44403c!important}
 [data-theme="dark"] .card{background:#1c1917;border-color:#44403c}
 [data-theme="dark"] .home-card{background:#1c1917;border-color:#44403c}
 [data-theme="dark"] .home-card:hover{border-color:#a8a29e}
@@ -502,6 +506,15 @@ body.modo-consulta .mtab{pointer-events:none}
 [data-theme="dark"] [style*="background:#f5f5f4"]{background:#292524!important}
 [data-theme="dark"] [style*="background:#fafaf9"]{background:#0c0a09!important}
 [data-theme="dark"] [style*="background:#e7e5e4"]{background:#44403c!important}
+/* A prévia do relatório em PDF simula papel impresso — sempre clara, mesmo
+   com o site em modo escuro. Reforça as cores originais por cima dos
+   overrides genéricos acima, só dentro do #pdf-preview. */
+[data-theme="dark"] #pdf-preview [style*="color:#1c1917"]{color:#1c1917!important}
+[data-theme="dark"] #pdf-preview [style*="color:#78716c"]{color:#78716c!important}
+[data-theme="dark"] #pdf-preview [style*="background:#fff"]{background:#fff!important}
+[data-theme="dark"] #pdf-preview [style*="background:#fff5f5"]{background:#fff5f5!important}
+[data-theme="dark"] #pdf-preview [style*="background:#f5f5f4"]{background:#f5f5f4!important}
+[data-theme="dark"] #pdf-preview [style*="background:#fafaf9"]{background:#fafaf9!important}
 [data-theme="dark"] [style*="background:#fee2e2"]{background:#7f1d1d!important;color:#fca5a5!important}
 [data-theme="dark"] [style*="background:#fef3c7"]{background:#92400e!important;color:#fef3c7!important}
 [data-theme="dark"] [style*="background:#fef9c3"]{background:#92400e!important;color:#fef3c7!important}

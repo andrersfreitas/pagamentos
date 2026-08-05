@@ -50,6 +50,10 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
     Excel
   </button>
+  <button onclick="exportarExcelComLancamento()" class="btn-backup btn-acoes-desktop" title="Excel com botão de lançamento (macro) na aba Consolidado" style="background:#0f6e56">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+    Excel + Lançamento
+  </button>
   <button onclick="fazerBackup()" id="btn-backup" class="btn-backup btn-acoes-desktop" title="Gerar backup dos dados (.json)">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     Backup
@@ -373,6 +377,7 @@
           <label class="cb-item"><input type="checkbox" id="pdf-graficos" checked> Incluir gr&#xE1;ficos</label>
           <label class="cb-item"><input type="checkbox" id="pdf-vencidos-top"> Vencidos no topo</label>
           <label class="cb-item"><input type="checkbox" id="pdf-por-veiculo"> Resumo por ve&#xED;culo</label>
+          <label class="cb-item"><input type="checkbox" id="pdf-aging" checked> Incluir aging (vencidos)</label>
         </div>
       </div>
     </div>
@@ -719,6 +724,7 @@
 <script src="js/dashboard.js"></script>
 <script src="js/supabase.js"></script>
 <script src="js/export.js"></script>
+<script src="js/export-vba.js"></script>
 <script src="js/app-init.js"></script>
 <script src="js/frota.js"></script>
 </body>

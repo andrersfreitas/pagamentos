@@ -52,8 +52,11 @@ function getPDFResumo(data){
 function buildCardsResumo(s, cardFn){
   // Mostrar APENAS os cards dos grupos que existem nos dados filtrados
   var cards='';
-  // Sempre mostra o total
-  cards+=cardFn('#1c1917','Total',fR(s.total),s.n+' documentos');
+  // Só mostra o card Total quando há mais de um grupo de status presente —
+  // com um único grupo (ex: só "Vencido"), o Total seria idêntico e redundante.
+  var gruposComDados=[s.tok.length,s.tlate.length,s.tdue.length,s.topen.length].filter(function(n){return n>0;}).length;
+  if(gruposComDados>1)
+    cards+=cardFn('#1c1917','Total',fR(s.total),s.n+' documentos');
   // Só mostra cada status se tiver pelo menos 1 documento
   if(s.tok.length)
     cards+=cardFn('#16a34a','Pago em dia',fR(s.tok.reduce(function(a,r){return a+r.val;},0)),s.tok.length+' doc(s)');
@@ -105,6 +108,43 @@ function rcard(cor,lbl,sub,val){
     +'</div>';
 }
 
+// Aging de recebíveis (só documentos vencidos) — mesmas faixas/cores do
+// Dashboard. Reaproveitado tanto no PDF gerado quanto na prévia em tela.
+function buildAgingHTML(data){
+  var hoje=getToday();
+  var faixas=[
+    {lbl:'1 – 15 dias',min:1,max:15,col:'#f59e0b'},
+    {lbl:'16 – 30 dias',min:16,max:30,col:'#ef4444'},
+    {lbl:'31 – 60 dias',min:31,max:60,col:'#dc2626'},
+    {lbl:'+ 60 dias',min:61,max:99999,col:'#991b1b'}
+  ];
+  var vencidos=data.filter(function(r){return r.stKey==='due'&&r.venc;});
+  if(!vencidos.length) return '';
+  var agingData=faixas.map(function(f){
+    var docs=vencidos.filter(function(r){
+      var dias=Math.round((hoje-new Date(r.venc+'T00:00:00'))/86400000);
+      return dias>=f.min&&dias<=f.max;
+    });
+    return {lbl:f.lbl,col:f.col,n:docs.length,val:docs.reduce(function(a,r){return a+r.val;},0)};
+  }).filter(function(f){return f.n>0;});
+  if(!agingData.length) return '';
+  var maxAging=Math.max.apply(null,agingData.map(function(f){return f.val;}))||1;
+  var rows=agingData.map(function(f){
+    var pct=Math.round(f.val/maxAging*100);
+    return '<div style="margin-bottom:8px">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:3px">'
+      +'<span style="font-size:11px;font-weight:600;color:'+f.col+'">'+f.lbl+'</span>'
+      +'<span style="font-size:11px;color:#78716c">'+f.n+' doc(s) · '+fR(f.val)+'</span>'
+      +'</div>'
+      +'<div style="height:8px;background:#f5f5f4;border-radius:4px;overflow:hidden">'
+      +'<div style="height:100%;width:'+pct+'%;background:'+f.col+'"></div>'
+      +'</div></div>';
+  }).join('');
+  return '<div style="padding:12px 14px;background:#fff;border:1px solid #e7e5e4;border-radius:8px;margin-bottom:20px">'
+    +'<h2 style="font-size:13px;font-weight:700;margin:0 0 10px;color:#1c1917;border-bottom:1px solid #e7e5e4;padding-bottom:6px">Aging de Recebíveis</h2>'
+    +rows+'</div>';
+}
+
 function buildPDFHTML(data){
   var s=getPDFResumo(data);
   var comGraf=document.getElementById('pdf-graficos').checked;
@@ -146,6 +186,10 @@ function buildPDFHTML(data){
       +'<th style="padding:5px 8px;text-align:left;font-size:10px;font-weight:600;color:#78716c;text-transform:uppercase;border-bottom:1px solid #e7e5e4">% Pago</th>'
       +'</tr></thead><tbody>'+vRows+'</tbody></table>';
   }
+
+  // Aging de recebíveis (só vencidos) — mesmas faixas do Dashboard
+  var comAging=document.getElementById('pdf-aging').checked;
+  var agingHTML=comAging?buildAgingHTML(data):'';
 
   // Gráfico SVG donut (inline, sem dependências)
   var grafHTML='';
@@ -256,6 +300,9 @@ function buildPDFHTML(data){
 
     // Resumo por veículo
     +veiHTML
+
+    // Aging de recebíveis
+    +agingHTML
 
     // Alerta vencidos
     +(s.tdue.length>0
@@ -417,19 +464,20 @@ function previewPDF(){
     }).join('')+'</tr></thead><tbody>'
     +data.slice(0,200).map(function(r){
       var _stc=stColors(r.stKey), sc=_stc.sc, bg=_stc.bg;
-      var rowBg=r.stKey==='due'?'background:#fff5f5;':'';
-      return '<tr style="border-bottom:1px solid #f5f5f4;'+rowBg+'">'
+      var rowBg=r.stKey==='due'?'#fff5f5':'#fff';
+      return '<tr style="border-bottom:1px solid #f5f5f4;background:'+rowBg+';">'
         +'<td style="padding:6px 10px;font-weight:'+(r.stKey==='due'?'700':'600')+';color:'+(r.stKey==='due'?'#dc2626':'#1c1917')+'">'+r.doc+'</td>'
-        +'<td style="padding:6px 10px">'+r.tipo+'</td>'
-        +'<td style="padding:6px 10px">'+fD(r.em)+'</td>'
-        +'<td style="padding:6px 10px;color:'+(r.stKey==='due'?'#dc2626':'inherit')+';font-weight:'+(r.stKey==='due'?'600':'400')+'">'+fD(r.venc)+'</td>'
-        +'<td style="padding:6px 10px">'+(r.pgto?fD(r.pgto):'\u2014')+'</td>'
-        +'<td style="padding:6px 10px;text-align:right">'+fR(r.val)+'</td>'
-        +'<td style="padding:6px 10px">'+(r.vei||'\u2014')+'</td>'
+        +'<td style="padding:6px 10px;color:#1c1917">'+r.tipo+'</td>'
+        +'<td style="padding:6px 10px;color:#1c1917">'+fD(r.em)+'</td>'
+        +'<td style="padding:6px 10px;color:'+(r.stKey==='due'?'#dc2626':'#1c1917')+';font-weight:'+(r.stKey==='due'?'600':'400')+'">'+fD(r.venc)+'</td>'
+        +'<td style="padding:6px 10px;color:#1c1917">'+(r.pgto?fD(r.pgto):'\u2014')+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:#1c1917">'+fR(r.val)+'</td>'
+        +'<td style="padding:6px 10px;color:#1c1917">'+(r.vei||'\u2014')+'</td>'
         +'<td style="padding:6px 10px"><span style="background:'+bg+';color:'+sc+';padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap">'+r.stLbl+'</span></td>'
         +'</tr>';
     }).join('')
     +(data.length>200?'<tr><td colspan="8" style="padding:10px;text-align:center;color:#78716c;font-size:12px">\u2026 mais '+(data.length-200)+' documentos no PDF completo</td></tr>':'')
-    +'</tbody></table></div></div>';
+    +'</tbody></table></div></div>'
+    +(document.getElementById('pdf-aging').checked ? buildAgingHTML(data) : '');
 }
 
