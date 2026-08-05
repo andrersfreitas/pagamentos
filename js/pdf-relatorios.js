@@ -92,26 +92,30 @@ function atualizarResumo(){
   var veics=getChk('pdfveic');
   if(veics.length) filtros.push('Placa: '+veics.join(', '));
 
+  var dk=document.documentElement.getAttribute('data-theme')==='dark';
   div.innerHTML=
     '<div style="display:flex;flex-direction:column;gap:10px">'
-    +(filtros.length?'<div style="font-size:11px;color:#78716c">&#x1F50D; Filtros ativos: <strong>'+filtros.join(' &middot; ')+'</strong></div>':'')
+    +(filtros.length?'<div style="font-size:11px;color:'+(dk?'#a8a29e':'#78716c')+'">&#x1F50D; Filtros ativos: <strong>'+filtros.join(' &middot; ')+'</strong></div>':'')
     +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
-    +buildCardsResumo(s, rcard)
+    +buildCardsResumo(s, function(cor,lbl,sub,val){return rcard(cor,lbl,sub,val,dk);})
     +'</div></div>';
 }
 
-function rcard(cor,lbl,sub,val){
-  return '<div style="border-left:3px solid '+cor+';padding:6px 12px;background:#fff;border-radius:0 6px 6px 0">'
+function rcard(cor,lbl,sub,val,dk){
+  var cBg=dk?'#292524':'#fff', cText=dk?'#fafaf9':'#1c1917', cMuted=dk?'#a8a29e':'#78716c';
+  return '<div style="border-left:3px solid '+cor+';padding:6px 12px;background:'+cBg+';border-radius:0 6px 6px 0">'
     +'<div style="font-size:10px;font-weight:600;color:'+cor+';text-transform:uppercase;letter-spacing:.04em">'+lbl+'</div>'
-    +'<div style="font-size:16px;font-weight:700;color:#1c1917;margin:2px 0">'+val+'</div>'
-    +'<div style="font-size:11px;color:#78716c">'+sub+'</div>'
+    +'<div style="font-size:16px;font-weight:700;color:'+cText+';margin:2px 0">'+val+'</div>'
+    +'<div style="font-size:11px;color:'+cMuted+'">'+sub+'</div>'
     +'</div>';
 }
 
 // Aging de recebíveis (só documentos vencidos) — mesmas faixas/cores do
 // Dashboard. Reaproveitado tanto no PDF gerado quanto na prévia em tela.
-function buildAgingHTML(data){
+function buildAgingHTML(data, dk){
   var hoje=getToday();
+  var cBg=dk?'#292524':'#fff', cBorder=dk?'#44403c':'#e7e5e4', cText=dk?'#fafaf9':'#1c1917',
+      cMuted=dk?'#a8a29e':'#78716c', cTrack=dk?'#1c1917':'#f5f5f4';
   var faixas=[
     {lbl:'1 – 15 dias',min:1,max:15,col:'#f59e0b'},
     {lbl:'16 – 30 dias',min:16,max:30,col:'#ef4444'},
@@ -134,14 +138,14 @@ function buildAgingHTML(data){
     return '<div style="margin-bottom:8px">'
       +'<div style="display:flex;justify-content:space-between;margin-bottom:3px">'
       +'<span style="font-size:11px;font-weight:600;color:'+f.col+'">'+f.lbl+'</span>'
-      +'<span style="font-size:11px;color:#78716c">'+f.n+' doc(s) · '+fR(f.val)+'</span>'
+      +'<span style="font-size:11px;color:'+cMuted+'">'+f.n+' doc(s) · '+fR(f.val)+'</span>'
       +'</div>'
-      +'<div style="height:8px;background:#f5f5f4;border-radius:4px;overflow:hidden">'
+      +'<div style="height:8px;background:'+cTrack+';border-radius:4px;overflow:hidden">'
       +'<div style="height:100%;width:'+pct+'%;background:'+f.col+'"></div>'
       +'</div></div>';
   }).join('');
-  return '<div style="padding:12px 14px;background:#fff;border:1px solid #e7e5e4;border-radius:8px;margin-bottom:20px">'
-    +'<h2 style="font-size:13px;font-weight:700;margin:0 0 10px;color:#1c1917;border-bottom:1px solid #e7e5e4;padding-bottom:6px">Aging de Recebíveis</h2>'
+  return '<div style="padding:12px 14px;background:'+cBg+';border:1px solid '+cBorder+';border-radius:8px;margin-bottom:20px">'
+    +'<h2 style="font-size:13px;font-weight:700;margin:0 0 10px;color:'+cText+';border-bottom:1px solid '+cBorder+';padding-bottom:6px">Aging de Recebíveis</h2>'
     +rows+'</div>';
 }
 
@@ -447,37 +451,44 @@ function previewPDF(){
   if(!data.length){div.style.display='none';return;}
   var s=getPDFResumo(data);
   div.style.display='block';
-  var corVenc=s.tdue.length>0?'#fee2e2':'#f5f5f4';
-  div.innerHTML='<div style="border:1px solid #e7e5e4;border-radius:10px;overflow:hidden">'
-    +'<div style="background:#fafaf9;padding:10px 16px;border-bottom:1px solid #e7e5e4;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
-    +'<span style="font-size:13px;font-weight:600">Pr\u00e9-visualiza\u00e7\u00e3o &mdash; '+data.length+' documentos &mdash; '+fR(s.total)+'</span>'
+
+  // Pr\u00e9via em tela segue o tema atual do site (ao contr\u00e1rio do PDF impresso,
+  // que \u00e9 sempre em papel branco) \u2014 evita a "tela branca" em modo escuro.
+  var dk=document.documentElement.getAttribute('data-theme')==='dark';
+  var cBorder=dk?'#44403c':'#e7e5e4', cBg=dk?'#1c1917':'#fff', cBgAlt=dk?'#292524':'#fafaf9',
+      cBgHead=dk?'#292524':'#f5f5f4', cText=dk?'#fafaf9':'#1c1917', cMuted=dk?'#a8a29e':'#78716c',
+      cDueRowBg=dk?'#3a1a1a':'#fff5f5', cRowBorder=dk?'#292524':'#f5f5f4';
+
+  div.innerHTML='<div style="border:1px solid '+cBorder+';border-radius:10px;overflow:hidden">'
+    +'<div style="background:'+cBgAlt+';padding:10px 16px;border-bottom:1px solid '+cBorder+';display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+    +'<span style="font-size:13px;font-weight:600;color:'+cText+'">Pr\u00e9-visualiza\u00e7\u00e3o &mdash; '+data.length+' documentos &mdash; '+fR(s.total)+'</span>'
     +'<div style="display:flex;gap:8px;font-size:12px">'
     +'<span style="color:#16a34a">&#x2713; '+( s.tok.length+s.tlate.length)+' pagos</span>'
     +(s.tdue.length?'<span style="color:#dc2626;font-weight:600">&#x26A0; '+s.tdue.length+' vencidos</span>':'')
     +(s.topen.length?'<span style="color:#2563eb">&#x25CB; '+s.topen.length+' a vencer</span>':'')
     +'</div></div>'
-    +'<div style="overflow:auto;max-height:440px">'
+    +'<div style="overflow:auto;max-height:440px;background:'+cBg+'">'
     +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
-    +'<thead><tr style="background:#f5f5f4;position:sticky;top:0">'
+    +'<thead><tr style="background:'+cBgHead+';position:sticky;top:0">'
     +['Doc','Tipo','Emiss\u00e3o','Vencimento','Pagamento','Valor','Ve\u00edculo','Status'].map(function(h,i){
-      return '<th style="padding:7px 10px;border-bottom:1px solid #e7e5e4;font-size:10px;font-weight:600;color:#78716c;text-align:'+(i===5?'right':'left')+';text-transform:uppercase;white-space:nowrap">'+h+'</th>';
+      return '<th style="padding:7px 10px;border-bottom:1px solid '+cBorder+';font-size:10px;font-weight:600;color:'+cMuted+';text-align:'+(i===5?'right':'left')+';text-transform:uppercase;white-space:nowrap">'+h+'</th>';
     }).join('')+'</tr></thead><tbody>'
     +data.slice(0,200).map(function(r){
       var _stc=stColors(r.stKey), sc=_stc.sc, bg=_stc.bg;
-      var rowBg=r.stKey==='due'?'#fff5f5':'#fff';
-      return '<tr style="border-bottom:1px solid #f5f5f4;background:'+rowBg+';">'
-        +'<td style="padding:6px 10px;font-weight:'+(r.stKey==='due'?'700':'600')+';color:'+(r.stKey==='due'?'#dc2626':'#1c1917')+'">'+r.doc+'</td>'
-        +'<td style="padding:6px 10px;color:#1c1917">'+r.tipo+'</td>'
-        +'<td style="padding:6px 10px;color:#1c1917">'+fD(r.em)+'</td>'
-        +'<td style="padding:6px 10px;color:'+(r.stKey==='due'?'#dc2626':'#1c1917')+';font-weight:'+(r.stKey==='due'?'600':'400')+'">'+fD(r.venc)+'</td>'
-        +'<td style="padding:6px 10px;color:#1c1917">'+(r.pgto?fD(r.pgto):'\u2014')+'</td>'
-        +'<td style="padding:6px 10px;text-align:right;color:#1c1917">'+fR(r.val)+'</td>'
-        +'<td style="padding:6px 10px;color:#1c1917">'+(r.vei||'\u2014')+'</td>'
+      var rowBg=r.stKey==='due'?cDueRowBg:cBg;
+      return '<tr style="border-bottom:1px solid '+cRowBorder+';background:'+rowBg+';">'
+        +'<td style="padding:6px 10px;font-weight:'+(r.stKey==='due'?'700':'600')+';color:'+(r.stKey==='due'?'#dc2626':cText)+'">'+r.doc+'</td>'
+        +'<td style="padding:6px 10px;color:'+cText+'">'+r.tipo+'</td>'
+        +'<td style="padding:6px 10px;color:'+cText+'">'+fD(r.em)+'</td>'
+        +'<td style="padding:6px 10px;color:'+(r.stKey==='due'?'#dc2626':cText)+';font-weight:'+(r.stKey==='due'?'600':'400')+'">'+fD(r.venc)+'</td>'
+        +'<td style="padding:6px 10px;color:'+cText+'">'+(r.pgto?fD(r.pgto):'\u2014')+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;color:'+cText+'">'+fR(r.val)+'</td>'
+        +'<td style="padding:6px 10px;color:'+cText+'">'+(r.vei||'\u2014')+'</td>'
         +'<td style="padding:6px 10px"><span style="background:'+bg+';color:'+sc+';padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap">'+r.stLbl+'</span></td>'
         +'</tr>';
     }).join('')
-    +(data.length>200?'<tr><td colspan="8" style="padding:10px;text-align:center;color:#78716c;font-size:12px">\u2026 mais '+(data.length-200)+' documentos no PDF completo</td></tr>':'')
+    +(data.length>200?'<tr><td colspan="8" style="padding:10px;text-align:center;color:'+cMuted+';font-size:12px">\u2026 mais '+(data.length-200)+' documentos no PDF completo</td></tr>':'')
     +'</tbody></table></div></div>'
-    +(document.getElementById('pdf-aging').checked ? buildAgingHTML(data) : '');
+    +(document.getElementById('pdf-aging').checked ? buildAgingHTML(data, dk) : '');
 }
 
