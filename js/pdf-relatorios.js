@@ -115,7 +115,7 @@ function rcard(cor,lbl,sub,val,dk){
 function buildAgingHTML(data, dk){
   var hoje=getToday();
   var cBg=dk?'#292524':'#fff', cBorder=dk?'#44403c':'#e7e5e4', cText=dk?'#fafaf9':'#1c1917',
-      cMuted=dk?'#a8a29e':'#78716c', cTrack=dk?'#1c1917':'#f5f5f4';
+      cMuted=dk?'#a8a29e':'#78716c';
   var faixas=[
     {lbl:'1 – 15 dias',min:1,max:15,col:'#f59e0b'},
     {lbl:'16 – 30 dias',min:16,max:30,col:'#ef4444'},
@@ -132,21 +132,18 @@ function buildAgingHTML(data, dk){
     return {lbl:f.lbl,col:f.col,n:docs.length,val:docs.reduce(function(a,r){return a+r.val;},0)};
   }).filter(function(f){return f.n>0;});
   if(!agingData.length) return '';
-  var maxAging=Math.max.apply(null,agingData.map(function(f){return f.val;}))||1;
+  // Faixas lado a lado, sem barras — mantém o painel compacto no topo do relatório.
   var rows=agingData.map(function(f){
-    var pct=Math.round(f.val/maxAging*100);
-    return '<div style="margin-bottom:8px">'
-      +'<div style="display:flex;justify-content:space-between;margin-bottom:3px">'
-      +'<span style="font-size:11px;font-weight:600;color:'+f.col+'">'+f.lbl+'</span>'
-      +'<span style="font-size:11px;color:'+cMuted+'">'+f.n+' doc(s) · '+fR(f.val)+'</span>'
-      +'</div>'
-      +'<div style="height:8px;background:'+cTrack+';border-radius:4px;overflow:hidden">'
-      +'<div style="height:100%;width:'+pct+'%;background:'+f.col+'"></div>'
-      +'</div></div>';
+    return '<div style="border-left:3px solid '+f.col+';padding-left:8px">'
+      +'<div style="font-size:10px;font-weight:600;color:'+f.col+'">'+f.lbl+'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:'+cText+';margin:1px 0">'+fR(f.val)+'</div>'
+      +'<div style="font-size:10px;color:'+cMuted+'">'+f.n+' doc(s)</div>'
+      +'</div>';
   }).join('');
-  return '<div style="padding:12px 14px;background:'+cBg+';border:1px solid '+cBorder+';border-radius:8px;margin-bottom:20px">'
-    +'<h2 style="font-size:13px;font-weight:700;margin:0 0 10px;color:'+cText+';border-bottom:1px solid '+cBorder+';padding-bottom:6px">Aging de Recebíveis</h2>'
-    +rows+'</div>';
+  return '<div style="padding:10px 14px;background:'+cBg+';border:1px solid '+cBorder+';border-radius:8px;margin-bottom:20px">'
+    +'<h2 style="font-size:13px;font-weight:700;margin:0 0 9px;color:'+cText+';border-bottom:1px solid '+cBorder+';padding-bottom:6px">Aging de Recebíveis</h2>'
+    +'<div style="display:grid;grid-template-columns:repeat('+agingData.length+',1fr);gap:10px">'+rows+'</div>'
+    +'</div>';
 }
 
 function buildPDFHTML(data){
@@ -154,6 +151,11 @@ function buildPDFHTML(data){
   var comGraf=document.getElementById('pdf-graficos').checked;
   var porVei=document.getElementById('pdf-por-veiculo').checked;
   var gerado=new Date().toLocaleDateString('pt-BR')+' \u00e0s '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+  // Com um \u00fanico status nos dados, o card de resumo diria o mesmo que o alerta
+  // de vencidos logo acima \u2014 nesse caso os cards s\u00e3o omitidos.
+  var gruposComDados=[s.tok.length,s.tlate.length,s.tdue.length,s.topen.length].filter(function(n){return n>0;}).length;
+  var cards=gruposComDados>1?buildCardsResumo(s, pdfCard):'';
 
   // Resumo por veículo
   var veiHTML='';
@@ -260,10 +262,17 @@ function buildPDFHTML(data){
     +'<div style="font-size:11px;color:#78716c;margin-top:2px">'+s.n+' documentos selecionados</div>'
     +'</div></div>'
 
-    // Cards de resumo — apenas os status presentes nos dados filtrados
-    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">'
-    +buildCardsResumo(s, pdfCard)
-    +'</div>'
+    // Alerta vencidos — ocupa o topo, no lugar onde ficavam os cards
+    +(s.tdue.length>0
+      ?'<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#991b1b">'
+        +'<strong>&#x26A0; '+s.tdue.length+' documento(s) vencido(s)</strong> &mdash; '
+        +fR(s.tdue.reduce(function(a,r){return a+r.val;},0))+' aguardando pagamento'
+        +'</div>'
+      :'')
+
+    // Cards de resumo — apenas os status presentes nos dados filtrados.
+    // Com um único status selecionado o card repetiria o alerta acima, então sai.
+    +(cards?'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">'+cards+'</div>':'')
 
     // Gráficos
     +grafHTML
@@ -273,14 +282,6 @@ function buildPDFHTML(data){
 
     // Aging de recebíveis
     +agingHTML
-
-    // Alerta vencidos
-    +(s.tdue.length>0
-      ?'<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#991b1b">'
-        +'<strong>&#x26A0; '+s.tdue.length+' documento(s) vencido(s)</strong> &mdash; '
-        +fR(s.tdue.reduce(function(a,r){return a+r.val;},0))+' aguardando pagamento'
-        +'</div>'
-      :'')
 
     // Tabela
     +'<h2 style="font-size:13px;font-weight:700;margin-bottom:8px;color:#1c1917;border-bottom:1px solid #e7e5e4;padding-bottom:6px">Documentos</h2>'
