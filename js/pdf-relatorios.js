@@ -195,7 +195,7 @@ function buildPDFHTML(data){
   var comAging=document.getElementById('pdf-aging').checked;
   var agingHTML=comAging?buildAgingHTML(data):'';
 
-  // Gráfico SVG donut (inline, sem dependências)
+  // Gráfico de barras — volume por status (SVG inline, sem dependências)
   var grafHTML='';
   if(comGraf){
     // Usar apenas status com documentos presentes nos dados filtrados
@@ -205,24 +205,6 @@ function buildPDFHTML(data){
       {lbl:'Vencido', val:s.tdue.length, vval:s.tdue.reduce(function(a,r){return a+r.val;},0), col:'#dc2626', bg:'#fee2e2'},
       {lbl:'A vencer', val:s.topen.length, vval:s.topen.reduce(function(a,r){return a+r.val;},0), col:'#2563eb', bg:'#dbeafe'}
     ].filter(function(st){return st.val>0;});  // ← só os que têm dados
-
-    var tot2=stAll.reduce(function(a,st){return a+st.val;},0)||1;
-    var cx=80,cy=80,ro=65,ri=40,ang=-Math.PI/2;
-    var svgPaths='';
-    stAll.forEach(function(st){
-      if(!st.val)return;
-      var sweep=2*Math.PI*(st.val/tot2);
-      if(sweep>2*Math.PI-0.001)sweep=2*Math.PI-0.001;
-      var x1=cx+ro*Math.cos(ang),y1=cy+ro*Math.sin(ang);
-      var x2=cx+ro*Math.cos(ang+sweep),y2=cy+ro*Math.sin(ang+sweep);
-      var xi1=cx+ri*Math.cos(ang),yi1=cy+ri*Math.sin(ang);
-      var xi2=cx+ri*Math.cos(ang+sweep),yi2=cy+ri*Math.sin(ang+sweep);
-      var lg=sweep>Math.PI?1:0;
-      svgPaths+='<path d="M'+x1+' '+y1+' A'+ro+' '+ro+' 0 '+lg+' 1 '+x2+' '+y2
-        +' L'+xi2+' '+yi2+' A'+ri+' '+ri+' 0 '+lg+' 0 '+xi1+' '+yi1+' Z"'
-        +' fill="'+st.bg+'" stroke="'+st.col+'" stroke-width="1.5"/>';
-      ang+=sweep;
-    });
 
     // Barras — apenas status com valor
     var maxVal=Math.max.apply(null,stAll.map(function(st){return st.vval;}))||1;
@@ -238,24 +220,9 @@ function buildPDFHTML(data){
     });
     barSVG+='</svg>';
 
-    var legend=stAll.map(function(st){
-      return '<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#78716c;margin-bottom:3px">'
-        +'<span style="width:8px;height:8px;border-radius:50%;background:'+st.col+';display:inline-block;flex-shrink:0"></span>'
-        +st.lbl+': <strong style="color:'+st.col+'">'+st.val+'</strong></div>';
-    }).join('');
-
-    grafHTML='<div style="display:flex;gap:24px;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap">'
-      +'<div><div style="font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Status dos documentos</div>'
-      +'<div style="display:flex;gap:12px;align-items:center">'
-      +'<svg width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">'+svgPaths
-      +'<text x="80" y="76" text-anchor="middle" font-size="20" font-weight="700" fill="#1c1917">'+s.n+'</text>'
-      +'<text x="80" y="91" text-anchor="middle" font-size="9" fill="#78716c">documentos</text>'
-      +'</svg>'
-      +'<div>'+legend+'</div>'
-      +'</div></div>'
-      +'<div><div style="font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Volume por status (R$)</div>'
-      +barSVG+'</div>'
-      +'</div>';
+    grafHTML='<div style="margin-bottom:20px">'
+      +'<div style="font-size:11px;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Volume por status (R$)</div>'
+      +barSVG+'</div>';
   }
 
   // Tabela de documentos
