@@ -228,12 +228,11 @@ function buildPDFHTML(data){
   // Tabela de documentos
   var rows=data.map(function(r){
     var _stc=stColors(r.stKey), sc=_stc.sc, bg=_stc.bg;
-    var rowBg=r.stKey==='due'?'#fff5f5':'';
-    return '<tr style="border-bottom:1px solid #f5f5f4'+(rowBg?';background:'+rowBg:'')+'">'
-      +(r.stKey==='due'?'<td style="padding:5px 8px;font-weight:700;color:#dc2626">'+r.doc+'</td>':'<td style="padding:5px 8px;font-weight:600">'+r.doc+'</td>')
+    return '<tr style="border-bottom:1px solid #f5f5f4">'
+      +'<td style="padding:5px 8px;font-weight:600">'+r.doc+'</td>'
       +'<td style="padding:5px 8px;color:'+(r.tipo==='CTe'?'#5b21b6':'#065f46')+';font-weight:600">'+r.tipo+'</td>'
       +'<td style="padding:5px 8px">'+fD(r.em)+'</td>'
-      +'<td style="padding:5px 8px'+(r.stKey==='due'?';color:#dc2626;font-weight:600':'')+'">'+fD(r.venc)+'</td>'
+      +'<td style="padding:5px 8px">'+fD(r.venc)+'</td>'
       +'<td style="padding:5px 8px">'+(r.pgto?fD(r.pgto):'\u2014')+'</td>'
       +'<td style="padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums">'+fR(r.val)+'</td>'
       +'<td style="padding:5px 8px">'+(r.vei||'\u2014')+'</td>'
@@ -419,7 +418,7 @@ function previewPDF(){
   var dk=document.documentElement.getAttribute('data-theme')==='dark';
   var cBorder=dk?'#44403c':'#e7e5e4', cBg=dk?'#1c1917':'#fff', cBgAlt=dk?'#292524':'#fafaf9',
       cBgHead=dk?'#292524':'#f5f5f4', cText=dk?'#fafaf9':'#1c1917', cMuted=dk?'#a8a29e':'#78716c',
-      cDueRowBg=dk?'#3a1a1a':'#fff5f5', cRowBorder=dk?'#292524':'#f5f5f4';
+      cRowBorder=dk?'#292524':'#f5f5f4';
 
   div.innerHTML='<div style="border:1px solid '+cBorder+';border-radius:10px;overflow:hidden">'
     +'<div style="background:'+cBgAlt+';padding:10px 16px;border-bottom:1px solid '+cBorder+';display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
@@ -437,12 +436,11 @@ function previewPDF(){
     }).join('')+'</tr></thead><tbody>'
     +data.slice(0,200).map(function(r){
       var _stc=stColors(r.stKey), sc=_stc.sc, bg=_stc.bg;
-      var rowBg=r.stKey==='due'?cDueRowBg:cBg;
-      return '<tr style="border-bottom:1px solid '+cRowBorder+';background:'+rowBg+';">'
-        +'<td style="padding:6px 10px;font-weight:'+(r.stKey==='due'?'700':'600')+';color:'+(r.stKey==='due'?'#dc2626':cText)+'">'+r.doc+'</td>'
+      return '<tr style="border-bottom:1px solid '+cRowBorder+';background:'+cBg+';">'
+        +'<td style="padding:6px 10px;font-weight:600;color:'+cText+'">'+r.doc+'</td>'
         +'<td style="padding:6px 10px;color:'+cText+'">'+r.tipo+'</td>'
         +'<td style="padding:6px 10px;color:'+cText+'">'+fD(r.em)+'</td>'
-        +'<td style="padding:6px 10px;color:'+(r.stKey==='due'?'#dc2626':cText)+';font-weight:'+(r.stKey==='due'?'600':'400')+'">'+fD(r.venc)+'</td>'
+        +'<td style="padding:6px 10px;color:'+cText+'">'+fD(r.venc)+'</td>'
         +'<td style="padding:6px 10px;color:'+cText+'">'+(r.pgto?fD(r.pgto):'\u2014')+'</td>'
         +'<td style="padding:6px 10px;text-align:right;color:'+cText+'">'+fR(r.val)+'</td>'
         +'<td style="padding:6px 10px;color:'+cText+'">'+(r.vei||'\u2014')+'</td>'
