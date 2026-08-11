@@ -155,7 +155,7 @@ function exportarExcel(){
       var rn=2;
       CONS.forEach(function(r){
         // Vencimento: regra dekadio igual ao sistema (dia<=10→10, <=20→20, >20→30 do mes seguinte)
-        var vencF='IF(C'+rn+'="","",IF(DAY(C'+rn+')<=10,DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+1,10),IF(DAY(C'+rn+')<=20,DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+1,20),DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+1,30))))';
+        var vencF='IF(C'+rn+'="","",IF(DAY(C'+rn+')=31,DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+2,10),IF(DAY(C'+rn+')<=10,DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+1,10),IF(DAY(C'+rn+')<=20,DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+1,20),MIN(DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+1,30),DATE(YEAR(C'+rn+'),MONTH(C'+rn+')+2,0))))))';
         // Pagamento: busca data em Pagamentos OJI pelo numero do documento
         var pgtoF="IFERROR(VLOOKUP(A"+rn+",'Pagamentos OJI'!A:B,2,0),\"\")";
         // Status: igual ao sistema com tolerancia de 5 dias
@@ -250,7 +250,7 @@ function exportarExcel(){
       // Fórmulas do formulário referenciam B3..B7 (campos de entrada)
       // B3=Nº Doc, B4=Tipo, B5=Emissão, B6=Valor R$, B7=Veículo
       // B9=Vencimento(calc), B10=Pagamento(calc), B11=Status(calc)
-      var vencFrm='IF(B5="","",IF(DAY(B5)<=10,DATE(YEAR(B5),MONTH(B5)+1,10),IF(DAY(B5)<=20,DATE(YEAR(B5),MONTH(B5)+1,20),DATE(YEAR(B5),MONTH(B5)+1,30))))';
+      var vencFrm='IF(B5="","",IF(DAY(B5)=31,DATE(YEAR(B5),MONTH(B5)+2,10),IF(DAY(B5)<=10,DATE(YEAR(B5),MONTH(B5)+1,10),IF(DAY(B5)<=20,DATE(YEAR(B5),MONTH(B5)+1,20),MIN(DATE(YEAR(B5),MONTH(B5)+1,30),DATE(YEAR(B5),MONTH(B5)+2,0))))))';
       var pgtoFrm="IF(B3=\"\",\"\",IFERROR(VLOOKUP(B3,'Pagamentos OJI'!A:B,2,0),\"\"))";
       var stFrm='IF(B9="","",IF(B10="",IF(B9<TODAY(),"Vencido ("&INT(TODAY()-B9)&"d)","A vencer ("&INT(B9-TODAY())&"d)"),IF(B10<=B9,"Pago em dia",IF(B10<=B9+5,"Pago em dia (tol. "&INT(B10-B9)&"d)","Pago c/ atraso ("&INT(B10-B9)&"d)"))))';
       // Fórmulas da tabela acumuladora (col A=doc, B=tipo, C=emissão, D=valor, E=veículo, F=venc, G=pgto, H=status)
@@ -290,7 +290,7 @@ function exportarExcel(){
       // Linhas da tabela (tblStart=16 .. tblEnd)
       for(var ti=0;ti<NTBL;ti++){
         var tr=tblStart+ti;
-        var vTbl='IF(C'+tr+'="","",IF(DAY(C'+tr+')<=10,DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+1,10),IF(DAY(C'+tr+')<=20,DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+1,20),DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+1,30))))';
+        var vTbl='IF(C'+tr+'="","",IF(DAY(C'+tr+')=31,DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+2,10),IF(DAY(C'+tr+')<=10,DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+1,10),IF(DAY(C'+tr+')<=20,DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+1,20),MIN(DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+1,30),DATE(YEAR(C'+tr+'),MONTH(C'+tr+')+2,0))))))';
         var gTbl="IF(A"+tr+"=\"\",\"\",IFERROR(VLOOKUP(A"+tr+",'Pagamentos OJI'!A:B,2,0),\"\"))";
         var hTbl='IF(AND(A'+tr+'="",C'+tr+'=""),"",IF(F'+tr+'="","Sem vencimento",IF(G'+tr+'="",IF(F'+tr+'<TODAY(),"Vencido ("&INT(TODAY()-F'+tr+')&"d)","A vencer ("&INT(F'+tr+'-TODAY())&"d)"),IF(G'+tr+'<=F'+tr+',"Pago em dia",IF(G'+tr+'<=F'+tr+'+5,"Pago em dia (tol. "&INT(G'+tr+'-F'+tr+')&"d)","Pago c/ atraso ("&INT(G'+tr+'-F'+tr+')&"d)")))))';
         c6.push([S(''),S(''),S(''),S(''),S(''),F(vTbl,0,3,'n'),F(gTbl,0,3,'n'),F(hTbl,'',0,'str')]);

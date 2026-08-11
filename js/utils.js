@@ -63,10 +63,16 @@ function normDate(s){
 function calcVenc(em){
   if(!em) return null;
   var p=em.split('-').map(Number),y=p[0],m=p[1],d=p[2];
+  if(d===31){
+    // dia 31 não cabe na 3ª dezena (que vai até o dia 30) — conta como se já
+    // fosse o dia 1 do mês seguinte, empurrando o vencimento mais um mês.
+    var total2=m+2, ny2=y+Math.floor((total2-1)/12), nm2=((total2-1)%12)+1;
+    return ny2+'-'+String(nm2).padStart(2,'0')+'-10';
+  }
   var nm=m<12?m+1:1,ny=m<12?y:y+1;
   if(d<=10) return ny+'-'+String(nm).padStart(2,'0')+'-10';
   if(d<=20) return ny+'-'+String(nm).padStart(2,'0')+'-20';
-  // dia 21-fim: usa o menor entre 30 e o último dia do mês seguinte (ex: fev→28)
+  // dia 21-30: usa o menor entre 30 e o último dia do mês seguinte (ex: fev→28)
   var ultimo=new Date(ny,nm,0).getDate();
   var dia30=Math.min(30,ultimo);
   return ny+'-'+String(nm).padStart(2,'0')+'-'+String(dia30).padStart(2,'0');
