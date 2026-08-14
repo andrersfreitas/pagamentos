@@ -52,37 +52,91 @@ function parsePlaca(txt){
   return m?m[0].toUpperCase():'';
 }
 
+// ── TOMADOR DO SERVIÇO ──
+// CNPJ (só dígitos) dos tomadores cujos documentos podem ser importados.
+// Para aceitar outro cliente, basta acrescentar o CNPJ nesta lista.
+var TOMADORES_ACEITOS = [
+  {cnpj:'11547756000171', nome:'OJI PAPEIS ESPECIAIS LTDA'}
+];
+// Motivo da última rejeição, mostrado na tela de importação.
+var _motivoRejeicaoXML = '';
+
+function soDigitos(s){ return String(s||'').replace(/\D/g,''); }
+
+function tomadorAceito(cnpj){
+  return TOMADORES_ACEITOS.some(function(t){ return t.cnpj===soDigitos(cnpj); });
+}
+
+// Recorta o conteúdo de um bloco <tag>...</tag> (XML já sem namespaces).
+function xmlBloco(root,tag){
+  var m=root.match(new RegExp('<'+tag+'[^>]*>([\\s\\S]*?)<\\/'+tag+'>'));
+  return m?m[1]:null;
+}
+
+// Quem paga o frete num CT-e não está no nome, está no código <toma>:
+// 0=remetente, 1=expedidor, 2=recebedor, 3=destinatário. O bloco <toma4> é o
+// caso em que o tomador não é nenhum dos anteriores e vem com CNPJ próprio.
+function tomadorCTe(x){
+  var t4=xmlBloco(x,'toma4');
+  if(t4) return {cnpj:soDigitos(xmlText(t4,'CNPJ')||xmlText(t4,'CPF')), nome:xmlText(t4,'xNome')||''};
+  var blocos={'0':'rem','1':'exped','2':'receb','3':'dest'};
+  var b=blocos[xmlText(x,'toma')];
+  if(!b) return null;
+  var bloco=xmlBloco(x,b);
+  if(!bloco) return null;
+  return {cnpj:soDigitos(xmlText(bloco,'CNPJ')||xmlText(bloco,'CPF')), nome:xmlText(bloco,'xNome')||''};
+}
+
+// Na NFS-e o tomador vem num bloco próprio (toma/tomador/TomadorServico,
+// conforme o layout do município). Sem esse bloco não dá pra afirmar quem é
+// o tomador, e o documento é rejeitado em vez de entrar sem verificação.
+function tomadorNFS(x){
+  var nomes=['toma','tomador','TomadorServico','Tomador','tomad'];
+  for(var i=0;i<nomes.length;i++){
+    var bloco=xmlBloco(x,nomes[i]);
+    if(bloco) return {cnpj:soDigitos(xmlText(bloco,'CNPJ')||xmlText(bloco,'Cnpj')||xmlText(bloco,'CPF')), nome:xmlText(bloco,'xNome')||xmlText(bloco,'RazaoSocial')||''};
+  }
+  return null;
+}
+
 function parseXMLCTe(xml){
+  _motivoRejeicaoXML='';
   var x=stripNS(xml);
   var sit=xmlText(x,'cStat')||xmlText(x,'Situacao')||'100';
   // Cancelado se tpEvento 110111 ou cStat 101
-  if(sit==='101') return null; // cancelado
+  if(sit==='101'){ _motivoRejeicaoXML='CT-e cancelado'; return null; }
   var nCT=xmlText(x,'nCT');
   var dhEmi=parseDateISO(xmlText(x,'dhEmi'));
   var vTPrest=xmlText(x,'vTPrest')||xmlText(x,'vRec');
   var xObs=xmlText(x,'xObs')||'';
   var placa=parsePlaca(xObs);
-  // tomador = dest xNome (3º xNome geralmente)
-  var nomes=xmlAll(x,'xNome');
-  var tomador=nomes.find(function(n){return n.toUpperCase().indexOf('OJI')>=0;})||'';
-  if(!nCT||!dhEmi||!vTPrest) return null;
-  if(tomador&&tomador.toUpperCase().indexOf('OJI')<0) return null; // não é OJI
-  return {doc:parseInt(nCT), em:dhEmi, val:parseFloat(vTPrest), vei:placa};
+  if(!nCT||!dhEmi||!vTPrest){ _motivoRejeicaoXML='XML sem número, emissão ou valor'; return null; }
+  var toma=tomadorCTe(x);
+  if(!toma||!toma.cnpj){ _motivoRejeicaoXML='não foi possível identificar o tomador no XML'; return null; }
+  if(!tomadorAceito(toma.cnpj)){
+    _motivoRejeicaoXML='tomador não autorizado: '+(toma.nome||'sem nome')+' (CNPJ '+toma.cnpj+')';
+    return null;
+  }
+  return {doc:parseInt(nCT), em:dhEmi, val:parseFloat(vTPrest), vei:placa, tomador:toma.nome, tomadorCnpj:toma.cnpj};
 }
 
 function parseXMLNFS(xml){
+  _motivoRejeicaoXML='';
   var x=stripNS(xml);
   // cStat 100 = autorizado
   var cStat=xmlText(x,'cStat')||'100';
-  if(cStat!=='100') return null;
+  if(cStat!=='100'){ _motivoRejeicaoXML='NFS-e não autorizada (cStat '+cStat+')'; return null; }
   var nNFSe=xmlText(x,'nNFSe');
   var dCompet=xmlText(x,'dCompet')||parseDateISO(xmlText(x,'dhEmi'));
   var vLiq=xmlText(x,'vLiq')||xmlText(x,'vServ');
-  var nomes=xmlAll(x,'xNome');
-  var tomador=nomes.find(function(n){return n.toUpperCase().indexOf('OJI')>=0;})||'';
-  if(!nNFSe||!dCompet||!vLiq) return null;
-  if(tomador&&tomador.toUpperCase().indexOf('OJI')<0) return null;
-  return {doc:parseInt(nNFSe), em:dCompet, val:parseFloat(vLiq), vei:''};
+  if(!nNFSe||!dCompet||!vLiq){ _motivoRejeicaoXML='XML sem número, competência ou valor'; return null; }
+  var toma=tomadorNFS(x);
+  if(!toma||!toma.cnpj){ _motivoRejeicaoXML='não foi possível identificar o tomador no XML'; return null; }
+  if(!tomadorAceito(toma.cnpj)){
+    _motivoRejeicaoXML='tomador não autorizado: '+(toma.nome||'sem nome')+' (CNPJ '+toma.cnpj+')';
+    return null;
+  }
+  return {doc:parseInt(nNFSe), em:dCompet, val:parseFloat(vLiq), vei:'', tomador:toma.nome, tomadorCnpj:toma.cnpj};
 }
 
 function processFile(tipo,input){
@@ -112,7 +166,7 @@ function processFile(tipo,input){
       PAG_OJI.forEach(function(p){if(p.data&&p.valor<0)pagMap[p.doc]=p.data;});
       var r=(tipo==='cte')?parseXMLCTe(text):parseXMLNFS(text);
       if(r) parsed.push(r);
-      else errors.push('XML inválido ou cancelado/não OJI');
+      else errors.push(_motivoRejeicaoXML||'XML inválido ou cancelado');
       if(parsed.length>0){
         mostrarConfirmacaoXML(tipo, parsed, errors, pagMap);
       } else {
