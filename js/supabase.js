@@ -111,7 +111,7 @@ function marcarAlteracao(){
 
 // ── AUTOSAVE: Supabase + localStorage ──
 function autoSave(){
-  CONS.forEach(function(r){ var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.lbl; });
+  CONS.forEach(recalcStatus);
 
   // \u2500\u2500 TRAVA DE SEGURAN\u00c7A CONTRA QUEDA SUSPEITA DE DADOS \u2500\u2500
   // sincronizarSupabase() apaga tudo na nuvem e reinsere o que est\u00e1 em
@@ -150,7 +150,7 @@ function autoSave(){
 }
 
 function mapConsParaSupabase(r){
-  return {doc:r.doc, tipo:r.tipo, em:r.em||null, venc:r.venc||null, pgto:r.pgto||null, val:r.val, vei:r.vei||null};
+  return {doc:r.doc, tipo:r.tipo, em:r.em||null, venc:r.venc||null, pgto:r.pgto||null, val:r.val, vei:r.vei||null, cancelado:!!r.cancelado};
 }
 function mapPagParaSupabase(r){
   return {doc:r.doc, data:r.data||null, valor:r.valor};
@@ -332,12 +332,11 @@ function carregarDados(){
               }
             }
           }
-          var st = calcSt(r.pgto, venc);
-          CONS.push({
+          CONS.push(recalcStatus({
             id:r.id, doc:r.doc, tipo:r.tipo, em:r.em, venc:venc,
             pgto:r.pgto, val:parseFloat(r.val)||0, vei:r.vei||'',
-            stKey:st.key, stLbl:st.lbl
-          });
+            cancelado:!!r.cancelado
+          }));
         });
 
         // Substituir PAG_OJI
@@ -407,7 +406,7 @@ function restaurarDoLocalStorage(){
     if(payload.VEICS){VEICS.length=0;payload.VEICS.forEach(function(v){VEICS.push(v);});}
     if(payload.MC){MC.length=0;payload.MC.forEach(function(m){MC.push(m);});}
     if(payload.MO){MO.length=0;payload.MO.forEach(function(m){MO.push(m);});}
-    CONS.forEach(function(r){var s=calcSt(r.pgto,r.venc);r.stKey=s.key;r.stLbl=s.lbl;});
+    CONS.forEach(recalcStatus);
 
     // Registros restaurados do cache que j\u00e1 t\u00eam id foram, em algum momento,
     // sincronizados com esse conte\u00fado \u2014 evita reenviar tudo \u00e0 toa assim que

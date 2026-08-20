@@ -4,19 +4,28 @@ var PER = 20;
 
 function fD(s){ if(!s)return'—'; var p=s.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 function fR(v){ return Math.abs(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
-function stCls(k){ return k==='ok'?'b-ok':k==='late'?'b-late':k==='due'?'b-due':'b-open'; }
+function stCls(k){ return k==='canc'?'b-canc':k==='ok'?'b-ok':k==='late'?'b-late':k==='due'?'b-due':'b-open'; }
 function stColors(k){
   return {
-    sc:k==='ok'?'#15803d':k==='late'?'#92400e':k==='due'?'#991b1b':'#1d4ed8',
-    bg:k==='ok'?'#dcfce7':k==='late'?'#fef3c7':k==='due'?'#fee2e2':'#dbeafe'
+    sc:k==='canc'?'#57534e':k==='ok'?'#15803d':k==='late'?'#92400e':k==='due'?'#991b1b':'#1d4ed8',
+    bg:k==='canc'?'#e7e5e4':k==='ok'?'#dcfce7':k==='late'?'#fef3c7':k==='due'?'#fee2e2':'#dbeafe'
   };
 }
+// Status exibido de um documento. 'cancelado' é decisão manual e passa por cima
+// do cálculo por datas — por isso todo recálculo de status deve passar por aqui,
+// nunca chamar calcSt() direto sobre um registro do CONS.
+function recalcStatus(r){
+  if(r.cancelado){ r.stKey='canc'; r.stLbl='Cancelado'; return r; }
+  var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.lbl; return r;
+}
+
 // Estatísticas agregadas de CONS — usado pelo Dashboard e pela exportação Excel,
 // para garantir que os dois sempre mostrem os mesmos números.
 function computeConsStats(data){
   var tval=0,pval=0,tok=0,tlate=0,tdue=0,topen=0,pmrSoma=0,pmrN=0;
   var vOk=0,vLate=0,vDue=0,vOpen=0,tickCte=0,nCte=0,tickNfs=0,nNfs=0;
   data.forEach(function(r){
+    if(r.cancelado) return; // cancelado nao entra em nenhum total
     tval+=r.val;
     if(r.pgto){ pval+=r.val; }
     if(r.tipo==='CTe'){tickCte+=r.val;nCte++;}else{tickNfs+=r.val;nNfs++;}
@@ -79,5 +88,5 @@ function calcVenc(em){
 }
 
 // Recalcular status com hoje real
-CONS.forEach(function(r){ var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.lbl; });
+CONS.forEach(recalcStatus);
 

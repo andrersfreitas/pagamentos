@@ -1,10 +1,31 @@
 // ── CONSOLIDADO ──
+// Documentos cancelados ficam fora da lista, dos totais e do relatório. A caixa
+// "Incluir cancelados" no filtro é a única forma de trazê-los de volta à tela.
+function _incluirCancelados(){
+  var el=document.getElementById('f-canc');
+  return !!(el && el.checked);
+}
+function toggleCancelado(idx,doc,tipo){
+  // idx é a posição no CONS quando a tabela foi desenhada; se a lista mudou
+  // desde então (recarga da nuvem, importação), localiza pelo número e tipo.
+  var r=CONS[idx];
+  if(!r || r.doc!==doc || r.tipo!==tipo){
+    r=CONS.find(function(c){ return c.doc===doc && c.tipo===tipo; });
+  }
+  if(!r) return;
+  r.cancelado = !r.cancelado;
+  recalcStatus(r);
+  marcarAlteracao();
+  af();
+}
 var cS={fil:[],pg:0,sk:'em',sd:1};
 
 function af(){
   var tipos=getChk('tipo'), stats=getChk('status'), veics=getChk('veiculo'), meses=getChk('mes');
   var q=document.getElementById('fD').value.trim().toLowerCase();
+  var verCanc=_incluirCancelados();
   cS.fil=CONS.filter(function(r){
+    if(r.cancelado&&!verCanc) return false;
     if(tipos.length&&tipos.indexOf(r.tipo)<0) return false;
     if(stats.length&&stats.indexOf(r.stKey)<0) return false;
     if(veics.length&&veics.indexOf(r.vei)<0) return false;
@@ -48,14 +69,17 @@ function renderC(){
         +'<input class="vei-inp" id="vi'+idx+'" value="'+(r.vei||'')+'" placeholder="\u2014" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key===\'Enter\')saveVei('+idx+')">'
         +'<button class="vei-ok" onclick="saveVei('+idx+')" title="Salvar placa">&#10003;</button>'
         +'</div>';
-      return '<tr><td class="dc">'+r.doc+'</td>'+
+      var btnCanc='<button class="btn-canc" onclick="toggleCancelado('+idx+','+r.doc+',\''+r.tipo+'\')" title="'
+        +(r.cancelado?'Reverter cancelamento':'Marcar como cancelado')+'">'
+        +(r.cancelado?'&#8634;':'&#8856;')+'</button>';
+      return '<tr'+(r.cancelado?' class="row-canc"':'')+'><td class="dc">'+r.doc+'</td>'+
         '<td><span class="badge '+bCls(r.tipo)+'">'+r.tipo+'</span></td>'+
         '<td>'+fD(r.em)+'</td><td>'+fD(r.venc)+'</td>'+
         '<td>'+(r.pgto?fD(r.pgto):'<span class="muted">\u2014</span>')+'</td>'+
         '<td class="nc">'+fR(r.val)+'</td>'+
         '<td>'+veiCell+'</td>'+
         '<td><span class="badge '+stCls(r.stKey)+'">'+r.stLbl+'</span></td>'+
-        '<td><button class="btn-del" onclick="excluirDoc('+idx+')" title="Excluir documento">&#x2715;</button></td></tr>';
+        '<td>'+btnCanc+'<button class="btn-del" onclick="excluirDoc('+idx+')" title="Excluir documento">&#x2715;</button></td></tr>';
     }).join('');
   }
   updPag('cons',cS);

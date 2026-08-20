@@ -347,8 +347,10 @@ function irParaConsolidado(statusKeys,veicKeys){
 }
 
 function updateHomeCards(){
-  var tdue=0,topen=0,tok=0,tlate=0;
+  var tdue=0,topen=0,tok=0,tlate=0,nAtivos=0;
   CONS.forEach(function(r){
+    if(r.cancelado) return;
+    nAtivos++;
     if(r.stKey==='due') tdue++;
     else if(r.stKey==='open') topen++;
     else if(r.stKey==='ok') tok++;
@@ -356,7 +358,7 @@ function updateHomeCards(){
   });
   var el;
   el=document.getElementById('home-sub-consolidado');
-  if(el) el.textContent=CONS.length+' documentos'+(tdue?' · '+tdue+' vencido(s)':'');
+  if(el) el.textContent=nAtivos+' documentos'+(tdue?' · '+tdue+' vencido(s)':'');
   el=document.getElementById('home-sub-dashboard');
   if(el) el.textContent=(tdue?'⚠ '+tdue+' vencido(s)':tok+tlate+' pagos · '+topen+' a vencer');
   el=document.getElementById('home-sub-oji');

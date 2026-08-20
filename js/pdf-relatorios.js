@@ -21,6 +21,7 @@ function getPDFData(){
       ate=document.getElementById('pdf-ate').value,
       veics=getChk('pdfveic');
   var data=CONS.filter(function(r){
+    if(r.cancelado)return false; // cancelado nunca entra no relatorio
     if(r.stKey==='ok'&&!ok)return false;
     if(r.stKey==='late'&&!late)return false;
     if(r.stKey==='due'&&!due)return false;

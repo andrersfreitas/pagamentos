@@ -160,7 +160,10 @@ function exportarExcel(){
         var pgtoF="IFERROR(VLOOKUP(A"+rn+",'Pagamentos OJI'!A:B,2,0),\"\")";
         // Status: igual ao sistema com tolerancia de 5 dias
         var stF='IF(D'+rn+'="","Sem vencimento",IF(E'+rn+'="",IF(D'+rn+'<TODAY(),"Vencido ("&INT(TODAY()-D'+rn+')&"d)","A vencer ("&INT(D'+rn+'-TODAY())&"d)"),IF(E'+rn+'<=D'+rn+',"Pago em dia",IF(E'+rn+'<=D'+rn+'+5,"Pago em dia (tol. "&INT(E'+rn+'-D'+rn+')&"d)","Pago c/ atraso ("&INT(E'+rn+'-D'+rn+')&"d)"))))';
-        c1.push([S(r.doc),S(r.tipo),D(r.em,3),F(vencF,_ser(r.venc),3,'n'),F(pgtoF,_ser(r.pgto),3,r.pgto?'n':'str'),N(r.val,2),S(r.vei||''),F(stF,r.stLbl||'')]);
+        // Cancelado é decisão manual: não há como o Excel deduzir pelas datas,
+        // então a célula vai como texto fixo em vez de fórmula.
+        var celStatus = r.cancelado ? S('Cancelado') : F(stF,r.stLbl||'');
+        c1.push([S(r.doc),S(r.tipo),D(r.em,3),F(vencF,_ser(r.venc),3,'n'),F(pgtoF,_ser(r.pgto),3,r.pgto?'n':'str'),N(r.val,2),S(r.vei||''),celStatus]);
         rn++;
       });
       var lr=rn-1;
@@ -322,7 +325,7 @@ function exportarExcel(){
 
 // ── BACKUP JSON + RESTAURAÇÃO ────────────────────────────
 function _buildBackupPayload(){
-  CONS.forEach(function(r){ var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.lbl; });
+  CONS.forEach(recalcStatus);
   return { versao:2, ts:new Date().toISOString(), gerado:new Date().toLocaleString('pt-BR'),
     totais:{cons:CONS.length,pag:PAG_OJI.length,frete:FRETE.length},
     CONS:CONS, PAG_OJI:PAG_OJI, VEICS:VEICS, MC:MC, MO:MO, FRETE:FRETE, COLETAS:COLETAS };
@@ -478,7 +481,7 @@ function restaurarBackup(input){
       if(payload.MO){MO.length=0; payload.MO.forEach(function(m){MO.push(m);});}
 
       // Recalcular status com hoje
-      CONS.forEach(function(r){ var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.lbl; });
+      CONS.forEach(recalcStatus);
 
       // Salvar no localStorage imediatamente
       autoSave();
