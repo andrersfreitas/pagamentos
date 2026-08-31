@@ -364,7 +364,7 @@ function updateHomeCards(){
   el=document.getElementById('home-sub-oji');
   if(el) el.textContent=PAG_OJI.length+' lançamentos';
   el=document.getElementById('home-sub-pdf');
-  if(el) el.textContent=CONS.length+' documentos disponíveis';
+  if(el) el.textContent=nAtivos+' documentos disponíveis';
 }
 
 

@@ -14,9 +14,69 @@ function stColors(k){
 // Status exibido de um documento. 'cancelado' é decisão manual e passa por cima
 // do cálculo por datas — por isso todo recálculo de status deve passar por aqui,
 // nunca chamar calcSt() direto sobre um registro do CONS.
+// Normaliza uma data YYYY-MM-DD para a data can\u00f4nica mais pr\u00f3xima (10, 20 ou \u00faltimo dia do m\u00eas \u226430)
+// Faixas: dia 1-4 \u2192 30 do m\u00eas anterior; dia 6-14 \u2192 10; dia 15-24 \u2192 20; dia \u226525 \u2192 30 (ou \u00faltimo dia)
+function normVenc(d){
+  if(!d) return d;
+  var p=d.split('-'),y=parseInt(p[0]),mo=parseInt(p[1]),dy=parseInt(p[2]);
+  var pad=function(n){return n<10?'0'+n:''+n;};
+  var lastDay=function(yy,mm){return new Date(yy,mm,0).getDate();};
+  if(dy>=6&&dy<=14) return y+'-'+pad(mo)+'-10';
+  if(dy>=15&&dy<=24) return y+'-'+pad(mo)+'-20';
+  if(dy>=25){ var c=Math.min(30,lastDay(y,mo)); return y+'-'+pad(mo)+'-'+pad(c); }
+  // dia 1-4: m\u00eas anterior
+  var pm=mo-1,py=y; if(pm===0){pm=12;py--;}
+  var c2=Math.min(30,lastDay(py,pm));
+  return py+'-'+pad(pm)+'-'+pad(c2);
+}
+
+function consAtivos(){
+  return CONS.filter(function(r){ return !r.cancelado; });
+}
+
 function recalcStatus(r){
   if(r.cancelado){ r.stKey='canc'; r.stLbl='Cancelado'; return r; }
   var s=calcSt(r.pgto,r.venc); r.stKey=s.key; r.stLbl=s.lbl; return r;
+}
+
+// Agregacao por data canonica de vencimento — FONTE UNICA dos numeros de
+// pagamento (cards do Pagamentos Oji e tabela "Pagamentos por data"). Nenhuma
+// tela deve refazer essa conta por conta propria: foi a duplicacao dessa logica
+// que fez documentos cancelados continuarem somando no Pendente.
+function agregarPorVencimento(){
+  var hoje=getToday();
+  var fatData={},nDocsData={},pagoData={};
+  consAtivos().forEach(function(r){
+    var d=normVenc(r.venc||''); if(!d) return;
+    fatData[d]=(fatData[d]||0)+r.val;
+    nDocsData[d]=(nDocsData[d]||0)+1;
+  });
+  PAG_OJI.forEach(function(r){
+    if(r.valor>=0) return;
+    var d=normVenc(r.data||''); if(!d) return;
+    pagoData[d]=(pagoData[d]||0)+Math.abs(r.valor);
+  });
+  var todas={};
+  Object.keys(fatData).forEach(function(d){todas[d]=true;});
+  Object.keys(pagoData).forEach(function(d){todas[d]=true;});
+  var datas=Object.keys(todas).sort();
+  // Pendente: saldo nao pago de cada vencimento ja passado, acumulado e rolante.
+  // O saldo corrente NAO e zerado a cada data: quando a OJI paga a mais numa
+  // data, o credito segue adiante e abate os vencimentos seguintes. Zerar a cada
+  // passo descartava esse credito e inflava o pendente — era por isso que tirar
+  // um documento da conta nao reduzia o pendente no mesmo valor.
+  var pendData={},saldoCorrente=0;
+  datas.forEach(function(d){
+    if(new Date(d+'T00:00:00')<hoje){
+      saldoCorrente+=((fatData[d]||0)-(pagoData[d]||0));
+      pendData[d]=Math.max(0,saldoCorrente);
+    }
+  });
+  var accum=Math.max(0,saldoCorrente);
+  var fat=Object.keys(fatData).reduce(function(a,d){return a+fatData[d];},0);
+  var pago=Object.keys(pagoData).reduce(function(a,d){return a+pagoData[d];},0);
+  return {fatData:fatData,pagoData:pagoData,pendData:pendData,nDocsData:nDocsData,
+          datas:datas,fat:fat,pago:pago,saldo:fat-pago,pend:accum};
 }
 
 // Estatísticas agregadas de CONS — usado pelo Dashboard e pela exportação Excel,

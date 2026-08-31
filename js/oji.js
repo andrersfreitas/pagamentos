@@ -52,26 +52,9 @@ function renderO(){
   document.getElementById('oji-tot').style.color=total<0?'#dc2626':'#16a34a';
   updPag('oji',oS);
   // Cards OJI: Faturado / Pago / Saldo / Pendente
-  var hoje=new Date(); hoje.setHours(0,0,0,0);
-  var _kFat={},_kPago={};
-  CONS.forEach(function(r){
-    var d=normVenc(r.venc||''); if(!d) return;
-    _kFat[d]=(_kFat[d]||0)+r.val;
-  });
-  PAG_OJI.forEach(function(r){
-    if(r.valor>=0) return;
-    var d=normVenc(r.data||''); if(!d) return;
-    _kPago[d]=(_kPago[d]||0)+Math.abs(r.valor);
-  });
-  var kFat=Object.values(_kFat).reduce(function(a,v){return a+v;},0);
-  var kPago=Object.values(_kPago).reduce(function(a,v){return a+v;},0);
-  var kSaldo=kFat-kPago;
-  var _kAccum=0;
-  Object.keys(_kFat).sort().forEach(function(d){
-    var vd=new Date(d+'T00:00:00');
-    if(vd<hoje) _kAccum=Math.max(0,_kAccum+((_kFat[d]||0)-(_kPago[d]||0)));
-  });
-  var kPend=_kAccum;
+  var _ativos=consAtivos();
+  var _ag=agregarPorVencimento();
+  var kFat=_ag.fat, kPago=_ag.pago, kSaldo=_ag.saldo, kPend=_ag.pend;
   function ojiCard(cls,icon,label,val,valCls,sub,desc){
     return '<div class="card oji-kpi '+cls+'">'
       +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
@@ -86,63 +69,25 @@ function renderO(){
   }
   var kSaldoAbs=fR(Math.abs(kSaldo));
   var saldoSub=kSaldo<0?'pagou mais que o faturado':'a receber no total';
-  var nDocsPend=CONS.filter(function(r){ return r.stKey==='due'; }).length;
-  var nDocsSaldo=CONS.filter(function(r){ return r.stKey==='due'||r.stKey==='open'; }).length;
+  var nDocsPend=_ativos.filter(function(r){ return r.stKey==='due'; }).length;
+  var nDocsSaldo=_ativos.filter(function(r){ return r.stKey==='due'||r.stKey==='open'; }).length;
   document.getElementById('cards-oji').innerHTML=
-    ojiCard('oji-kpi-fat','\ud83d\udcc4','Faturado',fR(kFat),'accent',CONS.length+' documentos','Valor total faturado por data can\u00f4nica de vencimento, independente da data de pagamento.')+
+    ojiCard('oji-kpi-fat','\ud83d\udcc4','Faturado',fR(kFat),'accent',_ativos.length+' documentos','Valor total faturado por data can\u00f4nica de vencimento, independente da data de pagamento.')+
     ojiCard('oji-kpi-pago','\u2713','Pago',fR(kPago),'ok',PAG_OJI.filter(function(r){return r.valor<0;}).length+' pagamentos','Valor total efetivamente recebido no per\u00edodo, normalizado para a data can\u00f4nica correspondente.')+
     ojiCard('oji-kpi-saldo','\u23f1','Saldo',kSaldoAbs,'late',nDocsSaldo+' doc(s) em aberto','<span class="oji-kpi-lbl" style="display:inline">SALDO = FATURADO \u2013 PAGO</span><br>'+fR(kFat)+' \u2013 '+fR(kPago))+
     ojiCard('oji-kpi-pend','\u26a0','Pendente',fR(kPend),'danger',nDocsPend+' documento(s) vencido(s)','Saldo n\u00e3o pago de cada vencimento passado, acumulado e rolante.');
   renderOjiResumoDatas();
 }
 
-// Normaliza uma data YYYY-MM-DD para a data can\u00f4nica mais pr\u00f3xima (10, 20 ou \u00faltimo dia do m\u00eas \u226430)
-// Faixas: dia 1-4 \u2192 30 do m\u00eas anterior; dia 6-14 \u2192 10; dia 15-24 \u2192 20; dia \u226525 \u2192 30 (ou \u00faltimo dia)
-function normVenc(d){
-  if(!d) return d;
-  var p=d.split('-'),y=parseInt(p[0]),mo=parseInt(p[1]),dy=parseInt(p[2]);
-  var pad=function(n){return n<10?'0'+n:''+n;};
-  var lastDay=function(yy,mm){return new Date(yy,mm,0).getDate();};
-  if(dy>=6&&dy<=14) return y+'-'+pad(mo)+'-10';
-  if(dy>=15&&dy<=24) return y+'-'+pad(mo)+'-20';
-  if(dy>=25){ var c=Math.min(30,lastDay(y,mo)); return y+'-'+pad(mo)+'-'+pad(c); }
-  // dia 1-4: m\u00eas anterior
-  var pm=mo-1,py=y; if(pm===0){pm=12;py--;}
-  var c2=Math.min(30,lastDay(py,pm));
-  return py+'-'+pad(pm)+'-'+pad(c2);
-}
-
 var _ojiAccOpen=null;
 function renderOjiResumoDatas(){
   var el=document.getElementById('oji-resumo-datas');
   if(!el) return;
-  var hoje=new Date(); hoje.setHours(0,0,0,0);
-  // Faturado por data can\u00f4nica de vencimento
-  var fatData={},nDocsData={};
-  CONS.forEach(function(r){
-    var d=normVenc(r.venc||''); if(!d) return;
-    fatData[d]=(fatData[d]||0)+r.val;
-    nDocsData[d]=(nDocsData[d]||0)+1;
-  });
-  // Pago por data can\u00f4nica do pagamento OJI
-  var pagoData={};
-  PAG_OJI.forEach(function(r){
-    if(r.valor>=0) return;
-    var d=normVenc(r.data||''); if(!d) return;
-    pagoData[d]=(pagoData[d]||0)+Math.abs(r.valor);
-  });
-  // Uni\u00e3o de datas can\u00f4nicas
-  var todasDatas={};
-  Object.keys(fatData).forEach(function(d){todasDatas[d]=true;});
-  Object.keys(pagoData).forEach(function(d){todasDatas[d]=true;});
-  var datas=Object.keys(todasDatas).sort();
+  var hoje=getToday();
+  var _ag=agregarPorVencimento();
+  var fatData=_ag.fatData, nDocsData=_ag.nDocsData, pagoData=_ag.pagoData,
+      pendData=_ag.pendData, datas=_ag.datas;
   if(!datas.length){el.innerHTML='<p style="font-size:13px;color:#a8a29e;padding:4px 0">Nenhum dado registrado.</p>';return;}
-  // Pendente acumulado (ordem cronol\u00f3gica, s\u00f3 datas vencidas)
-  var pendData={},accum=0;
-  datas.forEach(function(d){
-    var vd=new Date(d+'T00:00:00');
-    if(vd<hoje){ accum=Math.max(0,accum+((fatData[d]||0)-(pagoData[d]||0))); pendData[d]=accum; }
-  });
   // Agrupar por m\u00eas
   var meses={};
   datas.forEach(function(d){var m=d.slice(0,7);if(!meses[m])meses[m]=[];meses[m].push(d);});

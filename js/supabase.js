@@ -104,7 +104,7 @@ document.addEventListener('click', function(e){
 
 function marcarAlteracao(){
   var el = document.getElementById('topbar-count');
-  if(el) el.textContent = CONS.length + ' documentos';
+  if(el) el.textContent = consAtivos().length + ' documentos';
   clearTimeout(_autoSaveTimer);
   _autoSaveTimer = setTimeout(autoSave, 1500);
 }
@@ -237,7 +237,7 @@ function sincronizarSupabase(){
     setBadge('\u2713 Sincronizado \u00e0s ' + hora2 + ' \u2014 ' + CONS.length + ' docs', true);
     _lastSyncHash = currentHash;
     var el=document.getElementById('topbar-count');
-    if(el) el.textContent=CONS.length+' documentos';
+    if(el) el.textContent=consAtivos().length+' documentos';
     // Persistir os ids atribuídos aos registros novos também no cache local
     try{ localStorage.setItem(LS_KEY, JSON.stringify({
       ts:new Date().toISOString(), CONS:CONS, PAG_OJI:PAG_OJI, VEICS:VEICS, MC:MC, MO:MO
